@@ -7,6 +7,9 @@ v. 0.02
   - flowDataLength not in sample hash anymore
   + fix: header size byte for substr must be mod 4 == 0
 
+v. 0.03
+  + offset for unpack to avoid substr
+
 
 Elisa Jasinska <elisa.jasinska@ams-ix.net>
 2006/07/24
