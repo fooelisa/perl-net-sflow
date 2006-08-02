@@ -2,11 +2,9 @@
 #
 #
 # My first perl project ;)
-# Elisa Jasinska <elisa.jasinska@ams-ix.net>
 #
-# sFlow.pm - 2006/07/28
 #
-# Please send comments or bug reports to <sflow@ams-ix.net>
+# sFlow.pm - 2006/07/26
 #
 #
 # sFlow v4 RFC 3176 
@@ -18,7 +16,7 @@
 # Dataformat: http://jasinska.de/sFlow/sFlowV5FormatDiagram/
 #
 #
-# Copyright (c) 2006 AMS-IX B.V.
+# Copyright (c) 2006 Elisa Jasinska <elisa@ams-ix.net>
 #
 # This package is free software and is provided "as is" without express 
 # or implied warranty.  It may be used, redistributed and/or modified 
@@ -127,13 +125,16 @@ sub decode {
   my @errors = ();
   my $error = undef;
   my $subProcessed = undef;
+  # offset of already processed data in byte
+  my $offset = 0;
 
   ($sFlowDatagram{sFlowVersion},
    $sFlowDatagram{AgentIpVersion}) = unpack("NN", $sFlowDatagramPacked);
 
-  $sFlowDatagramPacked = substr($sFlowDatagramPacked, 8);
+  $offset += 8; 
+  #$sFlowDatagramPacked = substr($sFlowDatagramPacked, 8);
 
-  ($subProcessed, $error) = &_decodeIpAddress(\$sFlowDatagramPacked, \%sFlowDatagram, undef, \@sFlowSamples, 
+  ($subProcessed, $error) = &_decodeIpAddress(\$offset, \$sFlowDatagramPacked, \%sFlowDatagram, undef, \@sFlowSamples, 
                                               $sFlowDatagram{AgentIpVersion}, "AgentIp", 1);
 
   unless ($subProcessed) {
@@ -147,11 +148,13 @@ sub decode {
 
   if ($sFlowDatagram{sFlowVersion} <= SFLOWv4) {
 
-    ($sFlowDatagram{datagramSequenceNumber},
+    (undef,
+     $sFlowDatagram{datagramSequenceNumber},
      $sFlowDatagram{agentUptime},
-     $sFlowDatagram{samplesInPacket}) = unpack("N3", $sFlowDatagramPacked);
+     $sFlowDatagram{samplesInPacket}) = unpack("a$offset N3", $sFlowDatagramPacked);
 
-    $sFlowDatagramPacked = substr($sFlowDatagramPacked, 12);
+    $offset += 12;
+    #$sFlowDatagramPacked = substr($sFlowDatagramPacked, 12);
 
     # parse samples
     my $samplesCount = undef;
@@ -160,34 +163,38 @@ sub decode {
       my %sFlowSample = ();
       push @sFlowSamples, \%sFlowSample;
 
-      ($sFlowSample{sampleType}) = unpack("N", $sFlowDatagramPacked);
-      $sFlowDatagramPacked = substr ($sFlowDatagramPacked, 4);
+      (undef, $sFlowSample{sampleType}) = unpack("a$offset N", $sFlowDatagramPacked);
+      $offset += 4;
+      #$sFlowDatagramPacked = substr ($sFlowDatagramPacked, 4);
 
 
       # FLOWSAMPLE
       if ($sFlowSample{sampleType} == FLOWSAMPLE_SFLOWv4) {
 
-        ($sFlowSample{sampleSequenceNumber}) = unpack("N", $sFlowDatagramPacked);
-        $sFlowDatagramPacked = substr ($sFlowDatagramPacked, 4);
+        (undef, $sFlowSample{sampleSequenceNumber}) = unpack("a$offset N", $sFlowDatagramPacked);
+        $offset += 4;
+        #$sFlowDatagramPacked = substr ($sFlowDatagramPacked, 4);
 
         my $sourceId = undef;
 
-        ($sourceId,
+        (undef,
+         $sourceId,
          $sFlowSample{samplingRate},
          $sFlowSample{samplePool},
          $sFlowSample{drops},
          $sFlowSample{inputInterface},
          $sFlowSample{outputInterface},
-         $sFlowSample{packetDataType}) = unpack("N7", $sFlowDatagramPacked);
+         $sFlowSample{packetDataType}) = unpack("a$offset N7", $sFlowDatagramPacked);
 
-        $sFlowDatagramPacked = substr ($sFlowDatagramPacked, 28);
+        $offset += 28;
+        #$sFlowDatagramPacked = substr ($sFlowDatagramPacked, 28);
 
         $sFlowSample{sourceIdType} = $sourceId >> 24;
         $sFlowSample{sourceIdIndex} = $sourceId & 2 ** 24 - 1;
 
         # packet data type: header
         if ($sFlowSample{packetDataType} == HEADERDATA_SFLOWv4) {
-          ($subProcessed, $error) = &_decodeHeaderData(\$sFlowDatagramPacked, \%sFlowDatagram, \%sFlowSample, \@sFlowSamples); 
+          ($subProcessed, $error) = &_decodeHeaderData(\$offset, \$sFlowDatagramPacked, \%sFlowDatagram, \%sFlowSample, \@sFlowSamples); 
           unless ($subProcessed) {
             push @errors, $error;
           }
@@ -195,12 +202,12 @@ sub decode {
 
         # packet data type: IPv4
         elsif ($sFlowSample{packetDataType} == IPv4DATA_SFLOWv4) {
-          &_decodeIPv4Data(\$sFlowDatagramPacked, \%sFlowSample);
+          &_decodeIPv4Data(\$offset, \$sFlowDatagramPacked, \%sFlowSample);
         }
 
         # packet data type: IPv6
         elsif ($sFlowSample{packetDataType} == IPv6DATA_SFLOWv4){
-          &_decodeIPv6Data(\$sFlowDatagramPacked, \%sFlowSample);
+          &_decodeIPv6Data(\$offset, \$sFlowDatagramPacked, \%sFlowSample);
         }
 
         else { 
@@ -210,26 +217,28 @@ sub decode {
 		      return (\%sFlowDatagram, \@sFlowSamples, \@errors); 
         }
 
-        ($sFlowSample{extendedDataInSample}) = unpack("N", $sFlowDatagramPacked);
-        $sFlowDatagramPacked = substr ($sFlowDatagramPacked, 4);
+        (undef, $sFlowSample{extendedDataInSample}) = unpack("a$offset N", $sFlowDatagramPacked);
+        $offset += 4;
+        #$sFlowDatagramPacked = substr ($sFlowDatagramPacked, 4);
 
         my $extendedDataCount = undef;
         for ($extendedDataCount = 0; $extendedDataCount < $sFlowSample{extendedDataInSample}; $extendedDataCount++) {
 
           my $extendedDataType = undef;
 
-          ($extendedDataType) = unpack("N", $sFlowDatagramPacked);
-          $sFlowDatagramPacked = substr ($sFlowDatagramPacked, 4);
+          (undef, $extendedDataType) = unpack("a$offset N", $sFlowDatagramPacked);
+          $offset += 4;
+          #$sFlowDatagramPacked = substr ($sFlowDatagramPacked, 4);
 
           # extended data: switch
           if ($extendedDataType == SWITCHDATA_SFLOWv4) {
-            &_decodeSwitchData(\$sFlowDatagramPacked, \%sFlowSample);
+            &_decodeSwitchData(\$offset, \$sFlowDatagramPacked, \%sFlowSample);
           }
 
           # extended data: router
           elsif ($extendedDataType == ROUTERDATA_SFLOWv4) {
 
-            ($subProcessed, $error) = &_decodeRouterData(\$sFlowDatagramPacked, \%sFlowDatagram, \%sFlowSample, \@sFlowSamples);
+            ($subProcessed, $error) = &_decodeRouterData(\$offset, \$sFlowDatagramPacked, \%sFlowDatagram, \%sFlowSample, \@sFlowSamples);
 
             unless ($subProcessed) {
               push @errors, $error;
@@ -242,7 +251,7 @@ sub decode {
           # extended data: gateway
           elsif ($extendedDataType == GATEWAYDATA_SFLOWv4) {
 
-            ($subProcessed, $error) = &_decodeGatewayData(\$sFlowDatagramPacked, \%sFlowDatagram, \%sFlowSample, \@sFlowSamples);
+            ($subProcessed, $error) = &_decodeGatewayData(\$offset, \$sFlowDatagramPacked, \%sFlowDatagram, \%sFlowSample, \@sFlowSamples);
 
             unless ($subProcessed) {
               push @errors, $error;
@@ -254,13 +263,13 @@ sub decode {
 
           # extended data: user
           elsif ($extendedDataType == USERDATA_SFLOWv4) {
-            &_decodeUserData(\$sFlowDatagramPacked, \%sFlowDatagram, \%sFlowSample);
+            &_decodeUserData(\$offset, \$sFlowDatagramPacked, \%sFlowDatagram, \%sFlowSample);
           }
 
           # extended data: url
           # added in v.3.
           elsif ($extendedDataType == URLDATA_SFLOWv4) {
-            &_decodeUrlData(\$sFlowDatagramPacked, \%sFlowDatagram, \%sFlowSample);
+            &_decodeUrlData(\$offset, \$sFlowDatagramPacked, \%sFlowDatagram, \%sFlowSample);
           }
 
           else { 
@@ -279,52 +288,54 @@ sub decode {
 
         my $sourceId = undef;
 
-        ($sFlowSample{sampleSequenceNumber},
+        (undef,
+         $sFlowSample{sampleSequenceNumber},
          $sourceId,
          $sFlowSample{counterSamplingInterval},
-         $sFlowSample{countersVersion}) = unpack("N4", $sFlowDatagramPacked);
+         $sFlowSample{countersVersion}) = unpack("a$offset N4", $sFlowDatagramPacked);
 
-        $sFlowDatagramPacked = substr ($sFlowDatagramPacked, 16);  
+        $offset += 16;
+        #$sFlowDatagramPacked = substr ($sFlowDatagramPacked, 16);  
       
         $sFlowSample{sourceIdType} = $sourceId >> 24;
         $sFlowSample{sourceIdIndex} = $sourceId & 2 ** 24 - 1;
 
         # counterstype: generic
         if ($sFlowSample{countersVersion} == GENERICCOUNTER_SFLOWv4) {
-          &_decodeCounterGeneric(\$sFlowDatagramPacked, \%sFlowSample);
+          &_decodeCounterGeneric(\$offset, \$sFlowDatagramPacked, \%sFlowSample);
         }
 
         # counterstype: ethernet
         elsif ($sFlowSample{countersVersion} == ETHERNETCOUNTER_SFLOWv4) {
-          &_decodeCounterGeneric(\$sFlowDatagramPacked, \%sFlowSample);
-          &_decodeCounterEthernet(\$sFlowDatagramPacked, \%sFlowSample);
+          &_decodeCounterGeneric(\$offset, \$sFlowDatagramPacked, \%sFlowSample);
+          &_decodeCounterEthernet(\$offset, \$sFlowDatagramPacked, \%sFlowSample);
         }
 
         # counterstype: tokenring
         elsif ($sFlowSample{countersVersion} == TOKENRINGCOUNTER_SFLOWv4) {
-          &_decodeCounterGeneric(\$sFlowDatagramPacked, \%sFlowSample);
-          &_decodeCounterTokenring(\$sFlowDatagramPacked, \%sFlowSample);
+          &_decodeCounterGeneric(\$offset, \$sFlowDatagramPacked, \%sFlowSample);
+          &_decodeCounterTokenring(\$offset, \$sFlowDatagramPacked, \%sFlowSample);
         }
 
         # counterstype: fddi
         elsif ($sFlowSample{countersVersion} == FDDICOUNTER_SFLOWv4) {
-          &_decodeCounterGeneric(\$sFlowDatagramPacked, \%sFlowSample);
+          &_decodeCounterGeneric(\$offset, \$sFlowDatagramPacked, \%sFlowSample);
         }
 
         # counterstype: vg
         elsif ($sFlowSample{countersVersion} == VGCOUNTER_SFLOWv4) {
-          &_decodeCounterGeneric(\$sFlowDatagramPacked, \%sFlowSample);
-          &_decodeCounterVg(\$sFlowDatagramPacked, \%sFlowSample);
+          &_decodeCounterGeneric(\$offset, \$sFlowDatagramPacked, \%sFlowSample);
+          &_decodeCounterVg(\$offset, \$sFlowDatagramPacked, \%sFlowSample);
         }
 
         # counterstype: wan
         elsif ($sFlowSample{countersVersion} == WANCOUNTER_SFLOWv4) {
-          &_decodeCounterGeneric(\$sFlowDatagramPacked, \%sFlowSample);
+          &_decodeCounterGeneric(\$offset, \$sFlowDatagramPacked, \%sFlowSample);
         }
 
         # counterstype: vlan
         elsif ($sFlowSample{countersVersion} == VLANCOUNTER_SFLOWv4) {
-          &_decodeCounterVlan(\$sFlowDatagramPacked, \%sFlowSample);
+          &_decodeCounterVlan(\$offset, \$sFlowDatagramPacked, \%sFlowSample);
         }
 
         else { 
@@ -353,14 +364,17 @@ sub decode {
   elsif ($sFlowDatagram{sFlowVersion} >= SFLOWv5) { 
 
     # v5 also provides a sub agent id
-    ($sFlowDatagram{subAgentId}) = unpack("N", $sFlowDatagramPacked);
-    $sFlowDatagramPacked = substr($sFlowDatagramPacked, 4);
+    (undef, $sFlowDatagram{subAgentId}) = unpack("a$offset N", $sFlowDatagramPacked);
+    $offset += 4;
+    #$sFlowDatagramPacked = substr($sFlowDatagramPacked, 4);
 
-    ($sFlowDatagram{datagramSequenceNumber},
+    (undef,
+     $sFlowDatagram{datagramSequenceNumber},
      $sFlowDatagram{agentUptime},
-     $sFlowDatagram{samplesInPacket}) = unpack("N3", $sFlowDatagramPacked);
+     $sFlowDatagram{samplesInPacket}) = unpack("a$offset N3", $sFlowDatagramPacked);
 
-    $sFlowDatagramPacked = substr($sFlowDatagramPacked, 12);
+    $offset += 12;
+    #$sFlowDatagramPacked = substr($sFlowDatagramPacked, 12);
 
     # parse samples
     my $samplesCount = undef;
@@ -371,9 +385,10 @@ sub decode {
 
       my $sampleType = undef;
 
-      ($sampleType,$sFlowSample{sampleLength}) = unpack("NN", $sFlowDatagramPacked);
+      (undef, $sampleType,$sFlowSample{sampleLength}) = unpack("a$offset NN", $sFlowDatagramPacked);
 
-      $sFlowDatagramPacked = substr ($sFlowDatagramPacked, 8);
+      $offset += 8;
+      #$sFlowDatagramPacked = substr ($sFlowDatagramPacked, 8);
 
       $sFlowSample{sampleTypeEnterprise} = $sampleType >> 12;
       $sFlowSample{sampleTypeFormat} = $sampleType & 2 ** 12 - 1;
@@ -384,23 +399,25 @@ sub decode {
 
       if ($sFlowSample{sampleTypeEnterprise} == 0 and $sFlowSample{sampleTypeFormat} == FLOWSAMPLE_SFLOWv5) {
 
-        ($sFlowSample{sampleSequenceNumber},
+        (undef,
+         $sFlowSample{sampleSequenceNumber},
          $sourceId,
          $sFlowSample{samplingRate},
          $sFlowSample{samplePool},
          $sFlowSample{drops},
          $sFlowSample{inputInterface},
          $sFlowSample{outputInterface},
-         $sFlowSample{flowRecordsCount}) = unpack("N8", $sFlowDatagramPacked);
+         $sFlowSample{flowRecordsCount}) = unpack("a$offset N8", $sFlowDatagramPacked);
 
-        $sFlowDatagramPacked = substr ($sFlowDatagramPacked, 32);
+        $offset += 32;
+        #$sFlowDatagramPacked = substr ($sFlowDatagramPacked, 32);
 
         $sFlowSample{sourceIdType} = $sourceId >> 24;
         $sFlowSample{sourceIdIndex} = $sourceId & 2 ** 24 - 1;  
 
         for ($flowRecords = 0; $flowRecords < $sFlowSample{flowRecordsCount}; $flowRecords++) {
 
-          ($subProcessed, $error) = &_decodeFlowRecord(\$sFlowDatagramPacked, \%sFlowDatagram, \%sFlowSample, \@sFlowSamples, \@errors);
+          ($subProcessed, $error) = &_decodeFlowRecord(\$offset, \$sFlowDatagramPacked, \%sFlowDatagram, \%sFlowSample, \@sFlowSamples, \@errors);
 
           unless ($subProcessed) {
             push @errors, $error;
@@ -414,18 +431,20 @@ sub decode {
 
       elsif ($sFlowSample{sampleTypeEnterprise} == 0 and $sFlowSample{sampleTypeFormat} == COUNTERSAMPLE_SFLOWv5) {
 
-        ($sFlowSample{sampleSequenceNumber},
+        (undef,
+         $sFlowSample{sampleSequenceNumber},
          $sourceId,
-         $sFlowSample{counterRecordsCount}) = unpack("N3", $sFlowDatagramPacked);
+         $sFlowSample{counterRecordsCount}) = unpack("a$offset N3", $sFlowDatagramPacked);
 
-        $sFlowDatagramPacked = substr ($sFlowDatagramPacked, 12);
+        $offset += 12;
+        #$sFlowDatagramPacked = substr ($sFlowDatagramPacked, 12);
 
         $sFlowSample{sourceIdType} = $sourceId >> 24;
         $sFlowSample{sourceIdIndex} = $sourceId & 2 ** 24 - 1;
 
         for ($counterRecords = 0; $counterRecords < $sFlowSample{counterRecordsCount}; $counterRecords++) {
 
-          ($subProcessed, $error) = &_decodeCounterRecord(\$sFlowDatagramPacked, \%sFlowDatagram, \%sFlowSample, \@sFlowSamples);
+          ($subProcessed, $error) = &_decodeCounterRecord(\$offset, \$sFlowDatagramPacked, \%sFlowDatagram, \%sFlowSample, \@sFlowSamples);
 
           unless ($subProcessed) {
             push @errors, $error;
@@ -439,7 +458,8 @@ sub decode {
 
       elsif ($sFlowSample{sampleTypeEnterprise} == 0 and $sFlowSample{sampleTypeFormat} == EXPANDEDFLOWSAMPLE_SFLOWv5) {
       
-        ($sFlowSample{sampleSequenceNumber},
+        (undef,
+         $sFlowSample{sampleSequenceNumber},
          $sFlowSample{sourceIdType},
          $sFlowSample{sourceIdIndex},
          $sFlowSample{samplingRate},
@@ -449,13 +469,14 @@ sub decode {
          $sFlowSample{inputInterfaceValue},
          $sFlowSample{outputInterfaceFormat},
          $sFlowSample{outputInterfaceValue},
-         $sFlowSample{flowRecordsCount}) = unpack("N11", $sFlowDatagramPacked);
+         $sFlowSample{flowRecordsCount}) = unpack("a$offset N11", $sFlowDatagramPacked);
 
-        $sFlowDatagramPacked = substr ($sFlowDatagramPacked, 44);
+        $offset += 44;
+        #$sFlowDatagramPacked = substr ($sFlowDatagramPacked, 44);
 
         for ($flowRecords = 0; $flowRecords < $sFlowSample{flowRecordsCount}; $flowRecords++) {
 
-          ($subProcessed, $error) = &_decodeFlowRecord(\$sFlowDatagramPacked, \%sFlowDatagram, \%sFlowSample, \@sFlowSamples, \@errors);
+          ($subProcessed, $error) = &_decodeFlowRecord(\$offset, \$sFlowDatagramPacked, \%sFlowDatagram, \%sFlowSample, \@sFlowSamples, \@errors);
 
           unless ($subProcessed) {
             push @errors, $error;
@@ -469,16 +490,18 @@ sub decode {
 
       elsif ($sFlowSample{sampleTypeEnterprise} == 0 and $sFlowSample{sampleTypeFormat} == EXPANDEDCOUNTERSAMPLE_SFLOWv5) {
 
-        ($sFlowSample{sampleSequenceNumber},
+        (undef,
+         $sFlowSample{sampleSequenceNumber},
          $sFlowSample{sourceIdType},
          $sFlowSample{sourceIdIndex},
-         $sFlowSample{counterRecordsCount}) = unpack("N4", $sFlowDatagramPacked);
+         $sFlowSample{counterRecordsCount}) = unpack("a$offset N4", $sFlowDatagramPacked);
 
-        $sFlowDatagramPacked = substr ($sFlowDatagramPacked, 16);
+        $offset += 16;
+        #$sFlowDatagramPacked = substr ($sFlowDatagramPacked, 16);
   
         for ($counterRecords = 0; $counterRecords < $sFlowSample{counterRecordsCount}; $counterRecords++) {
 
-          ($subProcessed, $error) = &_decodeCounterRecord(\$sFlowDatagramPacked, \%sFlowDatagram, \%sFlowSample, \@sFlowSamples); 
+          ($subProcessed, $error) = &_decodeCounterRecord(\$offset, \$sFlowDatagramPacked, \%sFlowDatagram, \%sFlowSample, \@sFlowSamples); 
 
           unless ($subProcessed) {
             push @errors, $error;
@@ -518,6 +541,7 @@ sub decode {
 
 sub _decodeIpAddress {
 
+  my $offsetref = shift;
   my $sFlowDatagramPacked = shift;
   my $sFlowDatagram = shift;
   my $sFlowSample = shift;
@@ -527,32 +551,37 @@ sub _decodeIpAddress {
   my $DatagramOrSampleData = shift;
 
   my $error = undef;
+  my $offset = $$offsetref;
 
   if (defined($DatagramOrSampleData)) {
     if ($IpVersion == IPv4) {  
-      ($sFlowDatagram->{$keyName}) = unpack("B32", $$sFlowDatagramPacked);
+      (undef, $sFlowDatagram->{$keyName}) = unpack("a$offset B32", $$sFlowDatagramPacked);
       $sFlowDatagram->{$keyName} = Net::IP::ip_bintoip($sFlowDatagram->{$keyName},4);
-      $$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, 4);
+      $offset += 4;
+      #$$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, 4);
     }
 
     elsif ($IpVersion == IPv6) { 
-      ($sFlowDatagram->{$keyName}) = unpack("B128", $$sFlowDatagramPacked);
+      (undef, $sFlowDatagram->{$keyName}) = unpack("a$offset B128", $$sFlowDatagramPacked);
       $sFlowDatagram->{$keyName} = Net::IP::ip_bintoip($sFlowDatagram->{$keyName},6);
-      $$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, 16);
+      $offset += 16;
+      #$$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, 16);
     }
   }
 
   else {
     if ($IpVersion == IPv4) {
-      ($sFlowSample->{$keyName}) = unpack("B32", $$sFlowDatagramPacked);
+      ($sFlowSample->{$keyName}) = unpack("a$offset B32", $$sFlowDatagramPacked);
       $sFlowSample->{$keyName} = Net::IP::ip_bintoip($sFlowSample->{$keyName},4);
-      $$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, 4);
+      $offset += 4;
+      #$$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, 4);
     }
 
     elsif ($IpVersion == IPv6) {
-      ($sFlowSample->{$keyName}) = unpack("B128", $$sFlowDatagramPacked);
+      ($sFlowSample->{$keyName}) = unpack("a$offset B128", $$sFlowDatagramPacked);
       $sFlowSample->{$keyName} = Net::IP::ip_bintoip($sFlowSample->{$keyName},6);
-      $$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, 16);
+      $offset += 16;
+      #$$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, 16);
     }
   }
 
@@ -590,27 +619,32 @@ sub _decodeIpAddress {
 
   }
 
+  $$offsetref = $offset;
   return (1, undef);
 }
 
 
 sub _decodeFlowRecord {
 
+  my $offsetref = shift;
   my $sFlowDatagramPacked = shift;
   my $sFlowDatagram = shift;
   my $sFlowSample = shift;
   my $sFlowSamples = shift;
   my $errors = shift;
   
+  my $offset = $$offsetref;
   my $flowType = undef;
   my $flowDataLength = undef;
   my $error = undef;
   my $subProcessed = undef;
   
-  ($flowType,
-   $flowDataLength) = unpack("NN", $$sFlowDatagramPacked);
-
-  $$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, 8);
+  (undef,
+   $flowType,
+   $flowDataLength) = unpack("a$offset NN", $$sFlowDatagramPacked);
+  
+  $offset += 8;
+  #$$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, 8);
   
   my $flowTypeEnterprise = $flowType >> 12;
   my $flowTypeFormat = $flowType & 2 ** 12 - 1;
@@ -619,7 +653,7 @@ sub _decodeFlowRecord {
   
     if ($flowTypeFormat == HEADERDATA_SFLOWv5) {
 
-      ($subProcessed, $error) = &_decodeHeaderData($sFlowDatagramPacked, $sFlowDatagram, $sFlowSample, $sFlowSamples);
+      ($subProcessed, $error) = &_decodeHeaderData(\$offset, $sFlowDatagramPacked, $sFlowDatagram, $sFlowSample, $sFlowSamples);
 
       unless ($subProcessed) {
         push @{$errors}, $error;
@@ -627,24 +661,24 @@ sub _decodeFlowRecord {
 
     } 
 
-    elsif ($flowTypeFormat == SWITCHDATA_SFLOWv5) {
-      &_decodeSwitchData($sFlowDatagramPacked, $sFlowSample);
+    elsif ($flowTypeFormat == ETHERNETFRAMEDATA_SFLOWv5) {
+      &_decodeEthernetFrameData(\$offset, $sFlowDatagramPacked, $sFlowSample);
     } 
 
-    elsif ($flowTypeFormat == ETHERNETFRAMEDATA_SFLOWv5) {
-      &_decodeEthernetFrameData($sFlowDatagramPacked, $sFlowSample);
+    elsif ($flowTypeFormat == SWITCHDATA_SFLOWv5) {
+      &_decodeSwitchData(\$offset, $sFlowDatagramPacked, $sFlowSample);
     } 
 
     elsif ($flowTypeFormat == IPv4DATA_SFLOWv5) {
-      &_decodeIPv4Data($sFlowDatagramPacked, $sFlowSample);
+      &_decodeIPv4Data(\$offset, $sFlowDatagramPacked, $sFlowSample);
     } 
 
     elsif ($flowTypeFormat == IPv6DATA_SFLOWv5) {
-      &_decodeIPv6Data($sFlowDatagramPacked, $sFlowSample);
+      &_decodeIPv6Data(\$offset, $sFlowDatagramPacked, $sFlowSample);
     } 
   
     elsif ($flowTypeFormat == ROUTERDATA_SFLOWv5) {
-      ($subProcessed, $error) = &_decodeRouterData($sFlowDatagramPacked, $sFlowDatagram, $sFlowSample, $sFlowSamples);
+      ($subProcessed, $error) = &_decodeRouterData(\$offset, $sFlowDatagramPacked, $sFlowDatagram, $sFlowSample, $sFlowSamples);
 
       unless ($subProcessed) {
         return (undef, $error);
@@ -653,7 +687,7 @@ sub _decodeFlowRecord {
     } 
 
     elsif ($flowTypeFormat == GATEWAYDATA_SFLOWv5) {
-      ($subProcessed, $error) = &_decodeGatewayData($sFlowDatagramPacked, $sFlowDatagram, $sFlowSample, $sFlowSamples);
+      ($subProcessed, $error) = &_decodeGatewayData(\$offset, $sFlowDatagramPacked, $sFlowDatagram, $sFlowSample, $sFlowSamples);
 
       unless ($subProcessed) {
         return (undef, $error);
@@ -662,15 +696,15 @@ sub _decodeFlowRecord {
     } 
 
     elsif ($flowTypeFormat == USERDATA_SFLOWv5) {
-      &_decodeUserData($sFlowDatagramPacked, $sFlowDatagram, $sFlowSample);
+      &_decodeUserData(\$offset, $sFlowDatagramPacked, $sFlowDatagram, $sFlowSample);
     }   
 
     elsif ($flowTypeFormat == URLDATA_SFLOWv5) {
-      &_decodeUrlData($sFlowDatagramPacked, $sFlowDatagram, $sFlowSample);
+      &_decodeUrlData(\$offset, $sFlowDatagramPacked, $sFlowDatagram, $sFlowSample);
     } 
 
     elsif ($flowTypeFormat == MPLSDATA_SFLOWv5) {
-      ($subProcessed, $error) = &_decodeMplsData($sFlowDatagramPacked, $sFlowDatagram, $sFlowSample, $sFlowSamples);
+      ($subProcessed, $error) = &_decodeMplsData(\$offset, $sFlowDatagramPacked, $sFlowDatagram, $sFlowSample, $sFlowSamples);
 
       unless ($subProcessed) {
         return (undef, $error);
@@ -679,7 +713,7 @@ sub _decodeFlowRecord {
     } 
 
     elsif ($flowTypeFormat == NATDATA_SFLOWv5) {
-      ($subProcessed, $error) = &_decodeNatData($sFlowDatagramPacked, $sFlowDatagram, $sFlowSample, $sFlowSamples);
+      ($subProcessed, $error) = &_decodeNatData(\$offset, $sFlowDatagramPacked, $sFlowDatagram, $sFlowSample, $sFlowSamples);
 
       unless ($subProcessed) {
         return (undef, $error);
@@ -688,23 +722,23 @@ sub _decodeFlowRecord {
     } 
 
     elsif ($flowTypeFormat == MPLSTUNNEL_SFLOWv5) {
-      &_decodeMplsTunnel($sFlowDatagramPacked, $sFlowSample);
+      &_decodeMplsTunnel(\$offset, $sFlowDatagramPacked, $sFlowSample);
     } 
 
     elsif ($flowTypeFormat == MPLSVC_SFLOWv5) {
-      &_decodeMplsVc($sFlowDatagramPacked, $sFlowSample);
+      &_decodeMplsVc(\$offset, $sFlowDatagramPacked, $sFlowSample);
     }  
 
     elsif ($flowTypeFormat == MPLSFEC_SFLOWv5) {
-      &_decodeMplsFec($sFlowDatagramPacked, $sFlowSample);
+      &_decodeMplsFec(\$offset, $sFlowDatagramPacked, $sFlowSample);
     } 
 
     elsif ($flowTypeFormat == MPLSLVPFEC_SFLOWv5) {
-      &_decodeMplsLpvFec($sFlowDatagramPacked, $sFlowSample);
+      &_decodeMplsLpvFec(\$offset, $sFlowDatagramPacked, $sFlowSample);
     } 
 
     elsif ($flowTypeFormat == VLANTUNNEL_SFLOWv5) {
-      &_decodeVlanTunnel($sFlowDatagramPacked, $sFlowSample);
+      &_decodeVlanTunnel(\$offset, $sFlowDatagramPacked, $sFlowSample);
     }
   
     else { 
@@ -719,25 +753,30 @@ sub _decodeFlowRecord {
 		return (undef, $error); 
   }
 
+  $$offsetref = $offset;
   return (1,undef);
 }
 
 
 sub _decodeCounterRecord {
 
+  my $offsetref = shift;
   my $sFlowDatagramPacked = shift;
   my $sFlowDatagram = shift;
   my $sFlowSample = shift;
   my $sFlowSamples = shift;
 
+  my $offset = $$offsetref;
   my $counterType = undef;
   my $counterDataLength = undef;
   my $error = undef;
 
-  ($counterType,
-   $sFlowSample->{counterDataLength}) = unpack("NN", $$sFlowDatagramPacked);
+  (undef,
+   $counterType,
+   $sFlowSample->{counterDataLength}) = unpack("a$offset NN", $$sFlowDatagramPacked);
 
-  $$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, 8);
+  $offset += 8;
+  #$$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, 8);
 
   my $counterTypeEnterprise = $counterType >> 12;
   my $counterTypeFormat = $counterType & 2 ** 12 - 1;
@@ -745,27 +784,27 @@ sub _decodeCounterRecord {
   if ($counterTypeEnterprise == 0) {
 
     if ($counterTypeFormat == GENERICCOUNTER_SFLOWv5) {
-      &_decodeCounterGeneric($sFlowDatagramPacked, $sFlowSample);
+      &_decodeCounterGeneric(\$offset, $sFlowDatagramPacked, $sFlowSample);
     }  
 
     elsif ($counterTypeFormat == ETHERNETCOUNTER_SFLOWv5) {
-      &_decodeCounterEthernet($sFlowDatagramPacked, $sFlowSample);
+      &_decodeCounterEthernet(\$offset, $sFlowDatagramPacked, $sFlowSample);
     } 
 
     elsif ($counterTypeFormat == TOKENRINGCOUNTER_SFLOWv5) {
-      &_decodeCounterTokenring($sFlowDatagramPacked, $sFlowSample);
+      &_decodeCounterTokenring(\$offset, $sFlowDatagramPacked, $sFlowSample);
     } 
 
     elsif ($counterTypeFormat == VGCOUNTER_SFLOWv5) {
-      &_decodeCounterVg($sFlowDatagramPacked, $sFlowSample);
+      &_decodeCounterVg(\$offset, $sFlowDatagramPacked, $sFlowSample);
     } 
 
     elsif ($counterTypeFormat == VLANCOUNTER_SFLOWv5) {
-      &_decodeCounterVlan($sFlowDatagramPacked, $sFlowSample);
+      &_decodeCounterVlan(\$offset, $sFlowDatagramPacked, $sFlowSample);
     } 
 
     elsif ($counterTypeFormat == PROCESSORCOUNTER_SFLOWv5) {
-      &_decodeCounterProcessor($sFlowDatagramPacked, $sFlowSample);
+      &_decodeCounterProcessor(\$offset, $sFlowDatagramPacked, $sFlowSample);
     }
    
     else { 
@@ -780,42 +819,51 @@ sub _decodeCounterRecord {
 	  return (undef, $error); 
   }
   
+  $$offsetref = $offset;
   return (1, undef);
-
 }
 
 
 sub _decodeHeaderData {
 
+  my $offsetref = shift;
   my $sFlowDatagramPacked = shift;
   my $sFlowDatagram = shift;
   my $sFlowSample = shift;
   my $sFlowSamples = shift;
 
+  my $offset = $$offsetref;
+
   $sFlowSample->{HEADERDATA} = "HEADERDATA";
 
-  ($sFlowSample->{HeaderProtocol},
-  $sFlowSample->{HeaderFrameLength}) = unpack("NN", $$sFlowDatagramPacked);
-  $$sFlowDatagramPacked = substr($$sFlowDatagramPacked, 8);
+  (undef,
+   $sFlowSample->{HeaderProtocol},
+   $sFlowSample->{HeaderFrameLength}) = unpack("a$offset NN", $$sFlowDatagramPacked);
+  $offset += 8;
+  #$$sFlowDatagramPacked = substr($$sFlowDatagramPacked, 8);
   
   if ($sFlowDatagram->{sFlowVersion} == SFLOWv5) {
-    ($sFlowSample->{HeaderStrippedLength}) = unpack("N", $$sFlowDatagramPacked);
-    $$sFlowDatagramPacked = substr($$sFlowDatagramPacked, 4);
+    (undef, $sFlowSample->{HeaderStrippedLength}) = unpack("a$offset N", $$sFlowDatagramPacked);
+    $offset += 4;
+    #$$sFlowDatagramPacked = substr($$sFlowDatagramPacked, 4);
   }
 
-  ($sFlowSample->{HeaderSizeByte}) = unpack("N", $$sFlowDatagramPacked);
-  $$sFlowDatagramPacked = substr($$sFlowDatagramPacked, 4);
+  (undef, $sFlowSample->{HeaderSizeByte}) = unpack("a$offset N", $$sFlowDatagramPacked);
+  $offset += 4;
+  #$$sFlowDatagramPacked = substr($$sFlowDatagramPacked, 4);
 
   # header size in bit
   $sFlowSample->{HeaderSizeBit} = $sFlowSample->{HeaderSizeByte} * 8;
 
   my $header = undef;
-  $header = substr ($$sFlowDatagramPacked, 0, $sFlowSample->{HeaderSizeByte});
+  $header = substr ($$sFlowDatagramPacked, $offset, $sFlowSample->{HeaderSizeByte});
 
   # we have to cut off a $sFlowSample->{HeaderSizeByte} mod 4 == 0 number of bytes 
   my $tmp = 4 - ($sFlowSample->{HeaderSizeByte} % 4);
   $tmp == 4 and $tmp = 0;
-  $$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, $sFlowSample->{HeaderSizeByte} + $tmp);
+  #$$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, $sFlowSample->{HeaderSizeByte} + $tmp);
+
+  $offset += ($sFlowSample->{HeaderSizeByte} + $tmp);
 
   # unpack ethernet header
   my $ethObj = NetPacket::Ethernet->decode($header);
@@ -826,16 +874,16 @@ sub _decodeHeaderData {
   # unpack ip header
   my $ipObj = NetPacket::IPv6->decode($ethObj->{data});
 
-  $sFlowSample->{HeaderType} = $ethObj->{type};
+#  $sFlowSample->{HeaderType} = $ethObj->{type};
   $sFlowSample->{HeaderVer} = $ipObj->{ver};
-  $sFlowSample->{HeaderTclass} = $ipObj->{tclass};
-  $sFlowSample->{HeaderFlabel} = $ipObj->{flabel};
+#  $sFlowSample->{HeaderTclass} = $ipObj->{tclass};
+#  $sFlowSample->{HeaderFlabel} = $ipObj->{flabel};
   $sFlowSample->{HeaderDatalen} = $ipObj->{datalen};
 
   $sFlowSample->{HeaderNexth} = $ipObj->{nexth};
   $sFlowSample->{HeaderProto} = $ipObj->{proto};
 
-  $sFlowSample->{HeaderHlim} = $ipObj->{hlim};
+#  $sFlowSample->{HeaderHlim} = $ipObj->{hlim};
   $sFlowSample->{HeaderSrcIP} = $ipObj->{src_ip};
   $sFlowSample->{HeaderDestIP} = $ipObj->{dest_ip};
 
@@ -883,6 +931,7 @@ sub _decodeHeaderData {
     return (undef, $error);
   } 
 
+  $$offsetref = $offset;
   return (1, undef);
   
 }
@@ -890,128 +939,157 @@ sub _decodeHeaderData {
 
 sub _decodeEthernetFrameData {
 
+  my $offsetref = shift;
   my $sFlowDatagramPacked = shift;
   my $sFlowSample = shift;
 
   $sFlowSample->{ETHERNETFRAMEDATA} = "ETHERNETFRAMEDATA";
   
+  my $offset = $$offsetref;
   my $EtherSrcMac1 = undef;
   my $EtherSrcMac2 = undef;
   my $EtherDestMac1 = undef;
   my $EtherDestMac2 = undef;
    
-  ($sFlowSample->{EtherMacPacketlength},
+  (undef,
+   $sFlowSample->{EtherMacPacketlength},
    $EtherSrcMac1,
    $EtherSrcMac2,
    $EtherDestMac1,
    $EtherDestMac2,
-   $sFlowSample->{EtherPackettype}) = unpack("N6", $$sFlowDatagramPacked);
+   $sFlowSample->{EtherPackettype}) = unpack("a$offset N6", $$sFlowDatagramPacked);
   
   $sFlowSample->{EtherSrcMac} = sprintf("%08x%04x", $EtherSrcMac1, $EtherSrcMac2);
   $sFlowSample->{EtherDestMac} = sprintf("%08x%04x", $EtherDestMac1, $EtherDestMac2);
  
-  $$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, 24);
+  $offset += 24;
+  #$$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, 24);
+  $$offsetref = $offset;
 }
 
 
 sub _decodeIPv4Data {
-
+  
+  my $offsetref = shift;
   my $sFlowDatagramPacked = shift;
   my $sFlowSample = shift;
-
+  
+  my $offset = $$offsetref;
+  
   $sFlowSample->{IPv4DATA} = "IPv4DATA";
-
-  ($sFlowSample->{IPv4Packetlength},
+  
+  (undef,
+   $sFlowSample->{IPv4Packetlength},
    $sFlowSample->{IPv4NextHeaderProtocol},
    $sFlowSample->{IPv4srcIp},
    $sFlowSample->{IPv4destIp},
    $sFlowSample->{IPv4srcPort},
    $sFlowSample->{IPv4destPort},
    $sFlowSample->{IPv4tcpFlags},
-   $sFlowSample->{IPv4tos}) = unpack("N2B32B32N4", $$sFlowDatagramPacked); 
-
+   $sFlowSample->{IPv4tos}) = unpack("a$offset N2B32B32N4", $$sFlowDatagramPacked); 
+  
   $sFlowSample->{IPv4srcIp} = Net::IP::ip_bintoip($sFlowSample->{IPv4srcIp},4);
   $sFlowSample->{IPv4destIp} = Net::IP::ip_bintoip($sFlowSample->{IPv4destIp},4);
-
-  $$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, 32);
+  
+  $offset += 32;
+  #$$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, 32);
+  $$offsetref = $offset;
 }
 
 
 sub _decodeIPv6Data {
-
+  
+  my $offsetref = shift;
   my $sFlowDatagramPacked = shift;
   my $sFlowSample = shift;
-
+  
+  my $offset = $$offsetref;
+  
   $sFlowSample->{IPv6DATA} = "IPv6DATA";
 
-  ($sFlowSample->{IPv6Packetlength},
+  (undef,
+   $sFlowSample->{IPv6Packetlength},
    $sFlowSample->{IPv6NextHeaderProto},
    $sFlowSample->{IPv6srcIp},
    $sFlowSample->{IPv6destIp},
    $sFlowSample->{IPv6srcPort},
    $sFlowSample->{IPv6destPort},
    $sFlowSample->{IPv6tcpFlags},
-   $sFlowSample->{IPv6Priority}) = unpack("N2B128B128N4", $$sFlowDatagramPacked);
+   $sFlowSample->{IPv6Priority}) = unpack("a$offset N2B128B128N4", $$sFlowDatagramPacked);
 
   $sFlowSample->{IPv6srcIp} = Net::IP::ip_bintoip($sFlowSample->{IPv6srcIp},6);
   $sFlowSample->{IPv6destIp} = Net::IP::ip_bintoip($sFlowSample->{IPv6destIp},6);
-
-  $$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, 56);
+   
+  $offset += 56;
+  #$$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, 56);
+  $$offsetref = $offset;
 }
 
 
 sub _decodeSwitchData {
 
+  my $offsetref = shift;
   my $sFlowDatagramPacked = shift;
   my $sFlowSample = shift;
 
+  my $offset = $$offsetref;
+
   $sFlowSample->{SWITCHDATA} = "SWITCHDATA";
 
-  ($sFlowSample->{SwitchSrcVlan},
+  (undef,
+   $sFlowSample->{SwitchSrcVlan},
    $sFlowSample->{SwitchSrcPriority},
    $sFlowSample->{SwitchDestVlan},
-   $sFlowSample->{SwitchDestPriority}) = unpack("N4", $$sFlowDatagramPacked);
-
-  $$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, 16);
+   $sFlowSample->{SwitchDestPriority}) = unpack("a$offset N4", $$sFlowDatagramPacked);
+  
+  $offset += 16;
+  #$$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, 16);
+  $$offsetref = $offset;
 }
 
 
 sub _decodeRouterData {
 
+  my $offsetref = shift;
   my $sFlowDatagramPacked = shift;
   my $sFlowDatagram = shift;
   my $sFlowSample = shift;
   my $sFlowSamples = shift;
 
+  my $offset = $$offsetref;
   my $subProcessed = undef;
   my $error = undef;
 
   $sFlowSample->{ROUTERDATA} = "ROUTERDATA";
 
-  ($sFlowSample->{RouterIpVersionNextHopRouter}) = unpack("N", $$sFlowDatagramPacked);
-  $$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, 4);
+  (undef, $sFlowSample->{RouterIpVersionNextHopRouter}) = unpack("a$offset N", $$sFlowDatagramPacked);
+  $offset += 4;
+  #$$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, 4);
 
-  ($subProcessed, $error) = &_decodeIpAddress($sFlowDatagramPacked, $sFlowDatagram, $sFlowSample, $sFlowSamples, 
+  ($subProcessed, $error) = &_decodeIpAddress(\$offset, $sFlowDatagramPacked, $sFlowDatagram, $sFlowSample, $sFlowSamples, 
                                               $sFlowSample->{RouterIpVersionNextHopRouter}, "RouterIpAddressNextHopRouter", undef);
   
   unless ($subProcessed) {
     return (undef, $error);
   }
   
-  ($sFlowSample->{RouterSrcMask},$sFlowSample->{RouterDestMask}) = unpack("NN", $$sFlowDatagramPacked);
-  $$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, 8);
+  (undef, $sFlowSample->{RouterSrcMask},$sFlowSample->{RouterDestMask}) = unpack("a$offset NN", $$sFlowDatagramPacked);
+  $offset += 8;
 
+  $$offsetref = $offset;
   return (1, undef);
 }
 
 
 sub _decodeGatewayData {
 
+  my $offsetref = shift;
   my $sFlowDatagramPacked = shift;
   my $sFlowDatagram = shift;
   my $sFlowSample = shift;
   my $sFlowSamples = shift;
 
+  my $offset = $$offsetref;
   my $subProcessed = undef;
   my $error = undef;
 
@@ -1019,10 +1097,11 @@ sub _decodeGatewayData {
 
   if ($sFlowDatagram->{sFlowVersion} == SFLOWv5) {
 
-    ($sFlowSample->{GatewayIpVersionNextHopRouter}) = unpack("N", $$sFlowDatagramPacked);
-    $$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, 4);
+    (undef, $sFlowSample->{GatewayIpVersionNextHopRouter}) = unpack("a$offset N", $$sFlowDatagramPacked);
+    $offset += 4;
+    #$$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, 4);
 
-    ($subProcessed, $error) = &_decodeIpAddress($sFlowDatagramPacked, $sFlowDatagram, $sFlowSample, $sFlowSamples,
+    ($subProcessed, $error) = &_decodeIpAddress(\$offset, $sFlowDatagramPacked, $sFlowDatagram, $sFlowSample, $sFlowSamples,
                                                 $sFlowSample->{GatewayIpVersionNextHopRouter}, "GatewayIpVersionNextHopRouter", undef);
 
     unless ($subProcessed) {
@@ -1030,12 +1109,14 @@ sub _decodeGatewayData {
     } 
   }
 
-  ($sFlowSample->{GatewayAsRouter},
+  (undef,
+   $sFlowSample->{GatewayAsRouter},
    $sFlowSample->{GatewayAsSource},
    $sFlowSample->{GatewayAsSourcePeer},
-   $sFlowSample->{GatewayDestAsPathsCount}) = unpack("N4", $$sFlowDatagramPacked);    
+   $sFlowSample->{GatewayDestAsPathsCount}) = unpack("a$offset N4", $$sFlowDatagramPacked);    
 
-  $$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, 16);
+  $offset += 16;
+  #$$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, 16);
 
   # array containing the single paths
   my @sFlowAsPaths = ();
@@ -1052,10 +1133,12 @@ sub _decodeGatewayData {
     # reference to this single path hash in the paths array
     push @sFlowAsPaths, \%sFlowAsPath; 
     
-    ($sFlowAsPath{asPathSegmentType},
-     $sFlowAsPath{lengthAsList}) = unpack("NN", $$sFlowDatagramPacked);
+    (undef,
+     $sFlowAsPath{asPathSegmentType},
+     $sFlowAsPath{lengthAsList}) = unpack("a$offset NN", $$sFlowDatagramPacked);
     
-    $$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, 8);
+    $offset += 8;
+    #$$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, 8);
 
     # array containing the as numbers of a path
     my @sFlowAsNumber = ();
@@ -1065,281 +1148,357 @@ sub _decodeGatewayData {
 
     my $asListLength = undef;
     for ($asListLength = 0; $asListLength < $sFlowAsPath{lengthAsList}; $asListLength++) {
-      (my $asNumber) = unpack("N", $$sFlowDatagramPacked);
+      (undef, my $asNumber) = unpack("a$offset N", $$sFlowDatagramPacked);
       # push as number to array
       push @sFlowAsNumber, $asNumber;
-      $$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, 4);
+      $offset += 4;
+      #$$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, 4);
     }
 
   }
   # communities added in v.4.
   if ($sFlowDatagram->{sFlowVersion} == SFLOWv4) {
 
-    ($sFlowSample->{GatewayLengthCommunitiesList}) = unpack("N", $$sFlowDatagramPacked);
+    (undef, $sFlowSample->{GatewayLengthCommunitiesList}) = unpack("a$offset N", $$sFlowDatagramPacked);
 
-    $$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, 4);
+    $offset += 4;
+    #$$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, 4);
 
     my @sFlowCommunities = ();
     $sFlowSample->{GatewayCommunities} = \@sFlowCommunities;
 
     my $commLength = undef;
     for ($commLength=0; $commLength < $sFlowSample->{GatewayLengthCommunitiesList}; $commLength++) {
-      (my $community) = unpack("N", $$sFlowDatagramPacked);
+      (undef, my $community) = unpack("a$offset N", $$sFlowDatagramPacked);
       push @sFlowCommunities, $community;
-      $$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, 4);
+      $offset += 4;
+      #$$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, 4);
     }
   }
 
-  ($sFlowSample->{localPref}) = unpack("N", $$sFlowDatagramPacked);
-  $$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, 4);
+  (undef, $sFlowSample->{localPref}) = unpack("a$offset N", $$sFlowDatagramPacked);
+  $offset += 4;
+  #$$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, 4);
 
+  $$offsetref = $offset;
   return (1, undef);
 }
 
 
 sub _decodeUserData {
 
+  my $offsetref = shift;
   my $sFlowDatagramPacked = shift;
   my $sFlowDatagram = shift;
   my $sFlowSample = shift;
 
+  my $offset = $$offsetref;  
+
   $sFlowSample->{USERDATA} = "USERDATA";
 
   if ($sFlowDatagram->{sFlowVersion} == SFLOWv5) {
-    ($sFlowSample->{UserSrcCharset}) = unpack("N", $$sFlowDatagramPacked);
-    $$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, 4);
+    (undef, $sFlowSample->{UserSrcCharset}) = unpack("a$offset N", $$sFlowDatagramPacked);
+    $offset += 4;
+    #$$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, 4);
   }
 
   # xxx - string length "A" ????
-  ($sFlowSample->{UserLengthSrcString}) = unpack("N", $$sFlowDatagramPacked);
-  $$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, 4);
+  (undef, $sFlowSample->{UserLengthSrcString}) = unpack("a$offset N", $$sFlowDatagramPacked);
+  $offset += 4;
+  #$$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, 4);
 
-  ($sFlowSample->{UserSrcString}) = unpack("A$sFlowSample->{UserLengthSrcString}", $$sFlowDatagramPacked);
-  $$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, $sFlowSample->{UserLengthSrcString});
+  (undef, $sFlowSample->{UserSrcString}) = unpack("a$offset A$sFlowSample->{UserLengthSrcString}", $$sFlowDatagramPacked);
+  $offset += $sFlowSample->{UserLengthSrcString};
+  #$$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, $sFlowSample->{UserLengthSrcString});
 
   if ($sFlowDatagram->{sFlowVersion} == SFLOWv5) {
-    ($sFlowSample->{UserDestCharset}) = unpack("N", $$sFlowDatagramPacked);
-    $$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, 4);
+    (undef, $sFlowSample->{UserDestCharset}) = unpack("a$offset N", $$sFlowDatagramPacked);
+    $offset += 4;
+    #$$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, 4);
   }
 
-  ($sFlowSample->{UserLengthDestString}) = unpack("N", $$sFlowDatagramPacked);
-  $$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, 4);
+  (undef, $sFlowSample->{UserLengthDestString}) = unpack("a$offset N", $$sFlowDatagramPacked);
+  $offset += 4;
+  #$$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, 4);
 
-  ($sFlowSample->{UserDestString}) = unpack("A$sFlowSample->{UserLengthDestString}", $$sFlowDatagramPacked);
-  $$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, $sFlowSample->{UserLengthDestString});
+  (undef, $sFlowSample->{UserDestString}) = unpack("a$offset A$sFlowSample->{UserLengthDestString}", $$sFlowDatagramPacked);
+  $offset += $sFlowSample->{UserLengthDestString};
+  #$$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, $sFlowSample->{UserLengthDestString});
+  
+  $$offsetref = $offset;
 }
 
 
 sub _decodeUrlData {
 
+  my $offsetref = shift;
   my $sFlowDatagramPacked = shift;
   my $sFlowDatagram = shift;
   my $sFlowSample = shift;
 
+  my $offset = $$offsetref;
+  
   $sFlowSample->{URLDATA} = "URLDATA";
 
   # xxx - string length "A" ????
-  ($sFlowSample->{UrlDirection}, $sFlowSample->{UrlLength}) = unpack("NN", $$sFlowDatagramPacked);
-  $$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, 8);
+  (undef, $sFlowSample->{UrlDirection}, $sFlowSample->{UrlLength}) = unpack("a$offset NN", $$sFlowDatagramPacked);
+  $offset += 8;
+  #$$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, 8);
 
-  ($sFlowSample->{Url}) = unpack("A$sFlowSample->{UrlLength}", $$sFlowDatagramPacked);
-  $$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, $sFlowSample->{UrlLength});
+  (undef, $sFlowSample->{Url}) = unpack("a$offset A$sFlowSample->{UrlLength}", $$sFlowDatagramPacked);
+  $offset += $sFlowSample->{UrlLength};
+  #$$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, $sFlowSample->{UrlLength});
 
   if ($sFlowDatagram->{sFlowVersion} == SFLOWv5) {
 
-    ($sFlowSample->{UrlHostLength}) = unpack("N", $$sFlowDatagramPacked);
-    $$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, 4);
+    (undef, $sFlowSample->{UrlHostLength}) = unpack("a$offset N", $$sFlowDatagramPacked);
+    $offset += 4;
+    #$$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, 4);
 
-    ($sFlowSample->{UrlHost}) = unpack("A$sFlowSample->{UrlHostLength}", $$sFlowDatagramPacked);
-    $$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, $sFlowSample->{UrlHostLength});
+    (undef, $sFlowSample->{UrlHost}) = unpack("a$offset A$sFlowSample->{UrlHostLength}", $$sFlowDatagramPacked);
+    $offset += $sFlowSample->{UrlHostLength};
+    #$$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, $sFlowSample->{UrlHostLength});
   }
+  
+  $$offsetref = $offset;
 }
 
 
 sub _decodeMplsData {
 
+  my $offsetref = shift;
   my $sFlowDatagramPacked = shift;
   my $sFlowDatagram = shift;
   my $sFlowSample = shift;
   my $sFlowSamples = shift;
 
+  my $offset = $$offsetref;
   my $subProcessed = undef;
   my $error = undef;
  
   $sFlowSample->{MPLSDATA} = "MPLSDATA";
  
-  ($sFlowSample->{MplsIpVersionNextHopRouter}) = unpack("N", $$sFlowDatagramPacked);
-  $$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, 4);
+  (undef, $sFlowSample->{MplsIpVersionNextHopRouter}) = unpack("a$offset N", $$sFlowDatagramPacked);
+  $offset += 4;
+  #$$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, 4);
  
-  ($subProcessed, $error) = &_decodeIpAddress($sFlowDatagramPacked, $sFlowDatagram, $sFlowSample, $sFlowSamples,
+  ($subProcessed, $error) = &_decodeIpAddress(\$offset, $sFlowDatagramPacked, $sFlowDatagram, $sFlowSample, $sFlowSamples,
                                               $sFlowSample->{MplsIpVersionNextHopRouter}, "MplsIpVersionNextHopRouter", undef);
 
   unless ($subProcessed) {
     return (undef, $error); 
   }
  
-  ($sFlowSample->{MplsInLabesStackCount}) = unpack("N", $$sFlowDatagramPacked); 
-  $$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, 4);
+  (undef, $sFlowSample->{MplsInLabesStackCount}) = unpack("a$offset N", $$sFlowDatagramPacked); 
+  $offset += 4;
+  #$$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, 4);
   
   my @MplsInLabelStack = ();
   $sFlowSample->{MplsInLabelStack} = \@MplsInLabelStack;
   my $MplsInLabelStackCount = undef;
   
   for ($MplsInLabelStackCount = 0; $MplsInLabelStackCount < $sFlowSample->{MplsInLabesStackCount}; $MplsInLabelStackCount++) {
-    (my $MplsInLabel) = unpack("N", $$sFlowDatagramPacked);
+    (undef, my $MplsInLabel) = unpack("a$offset N", $$sFlowDatagramPacked);
     push @MplsInLabelStack, $MplsInLabel;
-    $$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, 4);
+    $offset += 4;
+    #$$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, 4);
 
   }
   
-  ($sFlowSample->{MplsOutLabelStackCount}) = unpack("N", $$sFlowDatagramPacked); 
-  $$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, 4);
+  (undef, $sFlowSample->{MplsOutLabelStackCount}) = unpack("a$offset N", $$sFlowDatagramPacked); 
+  $offset += 4;
+  #$$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, 4);
   
   my @MplsOutLabelStack = ();
   $sFlowSample->{MplsOutLabelStack} = \@MplsInLabelStack;
   my $MplsOutLabelStackCount = undef;  
 
   for ($MplsOutLabelStackCount = 0; $MplsOutLabelStackCount < $sFlowSample->{MplsOutLabesStackCount}; $MplsOutLabelStackCount++) {
-    (my $MplsOutLabel) = unpack("N", $$sFlowDatagramPacked);
+    (undef, my $MplsOutLabel) = unpack("a$offset N", $$sFlowDatagramPacked);
     push @MplsOutLabelStack, $MplsOutLabel;
-    $$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, 4);
+    $offset += 4;
+    #$$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, 4);
   }
 
+  $$offsetref = $offset;
   return (1, undef);
 }
 
 
 sub _decodeNatData {
-
+  
+  my $offsetref = shift;
   my $sFlowDatagramPacked = shift;
   my $sFlowDatagram = shift;
   my $sFlowSample = shift;
   my $sFlowSamples = shift;
 
+  my $offset = $$offsetref;
   my $subProcessed = undef;
   my $error = undef;
 
   $sFlowSample->{NATDATA} = "NATDATA";
 
-  ($sFlowSample->{NatIpVersionSrcAddress}) = unpack("N", $$sFlowDatagramPacked);
-  $$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, 4);
+  (undef, $sFlowSample->{NatIpVersionSrcAddress}) = unpack("a$offset N", $$sFlowDatagramPacked);
+  $offset += 4;
+  #$$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, 4);
 
-  ($subProcessed, $error) = &_decodeIpAddress($sFlowDatagramPacked, $sFlowDatagram, $sFlowSample, $sFlowSamples,
+  ($subProcessed, $error) = &_decodeIpAddress(\$offset, $sFlowDatagramPacked, $sFlowDatagram, $sFlowSample, $sFlowSamples,
                                               $sFlowSample->{NatIpVersionSrcAddress}, "NatIpVersionSrcAddress", undef);
 
   unless ($subProcessed) {
     return (undef, $error); 
   }
  
-  ($sFlowSample->{NatIpVersionDestAddress}) = unpack("N", $$sFlowDatagramPacked);
-  $$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, 4);
+  (undef, $sFlowSample->{NatIpVersionDestAddress}) = unpack("a$offset N", $$sFlowDatagramPacked);
+  $offset += 4;
+  #$$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, 4);
  
-  ($subProcessed, $error) = &_decodeIpAddress($sFlowDatagramPacked, $sFlowDatagram, $sFlowSample, $sFlowSamples,
+  ($subProcessed, $error) = &_decodeIpAddress(\$offset, $sFlowDatagramPacked, $sFlowDatagram, $sFlowSample, $sFlowSamples,
                                               $sFlowSample->{NatIpVersionDestAddress}, "NatIpVersionDestAddress", undef);
 
   unless ($subProcessed) {
     return (undef, $error); 
   }
 
+  $$offsetref = $offset;
   return (1, undef);
 }
 
 
 sub _decodeMplsTunnel {
 
+  my $offsetref = shift;
   my $sFlowDatagramPacked = shift;
   my $sFlowSample = shift;
 
+  my $offset = $$offsetref;
+  
   $sFlowSample->{MPLSTUNNEL} = "MPLSTUNNEL";
 
-  ($sFlowSample->{MplsTunnelLength}) = unpack("N", $$sFlowDatagramPacked);
-  $$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, 4);
+  (undef, $sFlowSample->{MplsTunnelLength}) = unpack("a$offset N", $$sFlowDatagramPacked);
+  $offset += 4;
+  #$$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, 4);
   
-  ($sFlowSample->{MplsTunnelName}) = unpack("A$sFlowSample->{MplsTunnelLength}", $$sFlowDatagramPacked);
-  $$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, $sFlowSample->{MplsTunnelLength}); 
+  (undef, $sFlowSample->{MplsTunnelName}) = unpack("a$offset A$sFlowSample->{MplsTunnelLength}", $$sFlowDatagramPacked);
+  $offset += $sFlowSample->{MplsTunnelLength};
+  #$$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, $sFlowSample->{MplsTunnelLength}); 
   
-  ($sFlowSample->{MplsTunnelId},$sFlowSample->{MplsTunnelCosValue}) = unpack("NN", $$sFlowDatagramPacked);
-  $$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, 8);
+  (undef, $sFlowSample->{MplsTunnelId},$sFlowSample->{MplsTunnelCosValue}) = unpack("a$offset NN", $$sFlowDatagramPacked);
+  $offset += 8;
+  #$$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, 8);
+  
+  $$offsetref = $offset;
 }
 
 
 sub _decodeMplsVc {
 
+  my $offsetref = shift;
   my $sFlowDatagramPacked = shift;
   my $sFlowSample = shift;
 
+  my $offset = $$offsetref;
+
   $sFlowSample->{MPLSVC} = "MPLSVC";
 
-  ($sFlowSample->{MplsVcInstanceNameLength}) = unpack("N", $$sFlowDatagramPacked);
-  $$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, 4);
+  (undef, $sFlowSample->{MplsVcInstanceNameLength}) = unpack("a$offset N", $$sFlowDatagramPacked);
+  $offset += 4;
+  #$$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, 4);
   
-  ($sFlowSample->{MplsVcInstanceName}) = unpack("A$sFlowSample->{MplsVcInstanceNameLength}", $$sFlowDatagramPacked);
-  $$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, $sFlowSample->{MplsVcInstanceNameLength});
+  (undef, $sFlowSample->{MplsVcInstanceName}) = unpack("a$offset A$sFlowSample->{MplsVcInstanceNameLength}", $$sFlowDatagramPacked);
+  $offset += $sFlowSample->{MplsVcInstanceNameLength};
+  #$$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, $sFlowSample->{MplsVcInstanceNameLength});
   
-  ($sFlowSample->{MplsVcId},$sFlowSample->{MplsVcLabelCosValue}) = unpack("NN", $$sFlowDatagramPacked);
-  $$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, 8);
+  (undef, $sFlowSample->{MplsVcId},$sFlowSample->{MplsVcLabelCosValue}) = unpack("a$offset NN", $$sFlowDatagramPacked);
+  $offset += 8;
+  #$$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, 8);
+  
+  $$offsetref = $offset;
 }
 
 
 sub _decodeMplsFec {
 
+  my $offsetref = shift;
   my $sFlowDatagramPacked = shift;
   my $sFlowSample = shift;
 
+  my $offset = $$offsetref;
+
   $sFlowSample->{MPLSFEC} = "MPLSFEC";
 
-  ($sFlowSample->{MplsFtnDescrLength}) = unpack("N", $$sFlowDatagramPacked);
-  $$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, 4);
+  (undef, $sFlowSample->{MplsFtnDescrLength}) = unpack("a$offset N", $$sFlowDatagramPacked);
+  $offset += 4;
+  #$$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, 4);
   
-  ($sFlowSample->{MplsFtnDescr}) = unpack("A$sFlowSample->{MplsFtnDescrLength}", $$sFlowDatagramPacked);
-  $$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, $sFlowSample->{MplsFtrDescrLength});
+  (undef, $sFlowSample->{MplsFtnDescr}) = unpack("a$offset A$sFlowSample->{MplsFtnDescrLength}", $$sFlowDatagramPacked);
+  $offset += $sFlowSample->{MplsFtrDescrLength};
+  #$$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, $sFlowSample->{MplsFtrDescrLength});
   
-  ($sFlowSample->{MplsFtnMask}) = unpack("N", $$sFlowDatagramPacked);
-  $$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, 4);
+  (undef, $sFlowSample->{MplsFtnMask}) = unpack("a$offset N", $$sFlowDatagramPacked);
+  $offset += 4;
+  #$$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, 4);
+  
+  $$offsetref = $offset;
 }
 
 
 sub _decodeMplsLpvFec {
 
+  my $offsetref = shift;
   my $sFlowDatagramPacked = shift;
   my $sFlowSample = shift;
 
+  my $offset = $$offsetref;
+  
   $sFlowSample->{MPLSLPVFEC} = "MPLSLPVFEC";
 
-  ($sFlowSample->{MplsFecAddrPrefixLength}) = unpack("N", $$sFlowDatagramPacked);
-  $$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, 4);
+  (undef, $sFlowSample->{MplsFecAddrPrefixLength}) = unpack("a$offset N", $$sFlowDatagramPacked);
+  $offset += 4;
+  #$$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, 4);
+
+  $$offsetref = $offset;
 }
 
 
 sub _decodeVlanTunnel {
 
+  my $offsetref = shift;
   my $sFlowDatagramPacked = shift;
   my $sFlowSample = shift;
 
   $sFlowSample->{VLANTUNNEL} = "VLANTUNNEL";
 
-  ($sFlowSample->{VlanTunnelLayerStackCount}) = unpack("N", $$sFlowDatagramPacked);
-  $$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, 4);
+  my $offset = $$offsetref;
+
+  (undef, $sFlowSample->{VlanTunnelLayerStackCount}) = unpack("a$offset N", $$sFlowDatagramPacked);
+  $offset += 4;
+  #$$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, 4);
   
   my @VlanTunnelLayerStack = ();
   $sFlowSample->{VlanTunnelLayerStack} = \@VlanTunnelLayerStack;
   my $VlanTunnelLayerCount = undef;
 
   for ($VlanTunnelLayerCount = 0; $VlanTunnelLayerCount < $sFlowSample->{VlanTunnelLayerStackCount}; $VlanTunnelLayerCount++) {
-    (my $VlanTunnelLayer) = unpack("N", $$sFlowDatagramPacked);
+    (undef, my $VlanTunnelLayer) = unpack("a$offset N", $$sFlowDatagramPacked);
     push @VlanTunnelLayerStack, $VlanTunnelLayer;
-    $$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, 4);
+    $offset += 4;
+    #$$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, 4);
   }
+  $$offsetref = $offset;
 }
 
 
 sub _decodeCounterGeneric {
 
+  my $offsetref = shift;
   my $sFlowDatagramPacked = shift;
   my $sFlowSample = shift;
 
   $sFlowSample->{COUNTERGENERIC} = "COUNTERGENERIC";
 
+  my $offset = $$offsetref;
   my $ifSpeed1 = undef; 
   my $ifSpeed2 = undef; 
   my $ifInOctets1 = undef;
@@ -1347,7 +1506,8 @@ sub _decodeCounterGeneric {
   my $ifOutOctets1 = undef;
   my $ifOutOctets2 = undef;
 
-  ($sFlowSample->{ifIndex},
+  (undef,
+   $sFlowSample->{ifIndex},
    $sFlowSample->{ifType},
    $ifSpeed1,
    $ifSpeed2,
@@ -1370,9 +1530,10 @@ sub _decodeCounterGeneric {
    $sFlowSample->{ifOutBroadcastPkts},
    $sFlowSample->{ifOutDiscards},
    $sFlowSample->{ifOutErrors},
-   $sFlowSample->{ifPromiscuousMode}) = unpack("N5B1B1B30N16", $$sFlowDatagramPacked);
+   $sFlowSample->{ifPromiscuousMode}) = unpack("a$offset N5B1B1B30N16", $$sFlowDatagramPacked);
 
-  $$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, 88);
+  $offset += 88;
+  #$$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, 88);
 
   $sFlowSample->{ifSpeed} = Math::BigInt->new("$ifSpeed1");
   $sFlowSample->{ifSpeed} = $sFlowSample->{ifSpeed} << 32;
@@ -1385,17 +1546,23 @@ sub _decodeCounterGeneric {
   $sFlowSample->{ifOutOctets} = Math::BigInt->new("$ifOutOctets1");
   $sFlowSample->{ifOutOctets} = $sFlowSample->{ifOutOctets} << 32;
   $sFlowSample->{ifOutOctets} += $ifOutOctets2;
+  
+  $$offsetref = $offset;
 }
 
 
 sub _decodeCounterEthernet {
-
+  
+  my $offsetref = shift;
   my $sFlowDatagramPacked = shift;
   my $sFlowSample = shift;
 
+  my $offset = $$offsetref;
+
   $sFlowSample->{COUNTERETHERNET} = "COUNTERETHERNET";
 
-  ($sFlowSample->{dot3StatsAlignmentErrors},
+  (undef,
+   $sFlowSample->{dot3StatsAlignmentErrors},
    $sFlowSample->{dot3StatsFCSErrors},
    $sFlowSample->{dot3StatsSingleCollisionFrames},
    $sFlowSample->{dot3StatsMultipleCollisionFrames},
@@ -1407,46 +1574,57 @@ sub _decodeCounterEthernet {
    $sFlowSample->{dot3StatsCarrierSenseErrors},
    $sFlowSample->{dot3StatsFrameTooLongs},
    $sFlowSample->{dot3StatsInternalMacReceiveErrors},
-   $sFlowSample->{dot3StatsSymbolErrors}) = unpack("N13", $$sFlowDatagramPacked);
+   $sFlowSample->{dot3StatsSymbolErrors}) = unpack("a$offset N13", $$sFlowDatagramPacked);
 
-  $$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, 52);
+  $offset += 52;
+  #$$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, 52);
+  $$offsetref = $offset;
 } 
 
 
 sub _decodeCounterTokenring {
 
+  my $offsetref = shift;
   my $sFlowDatagramPacked = shift;
   my $sFlowSample = shift;
 
+  my $offset = $$offsetref;
+
   $sFlowSample->{COUNTERTOKENRING} = "COUNTERTOKENRING";
 
-  ($sFlowSample->{dot5StatsLineErrors},
-  $sFlowSample->{dot5StatsBurstErrors},
-  $sFlowSample->{dot5StatsACErrors},
-  $sFlowSample->{dot5StatsAbortTransErrors},
-  $sFlowSample->{dot5StatsInternalErrors},
-  $sFlowSample->{dot5StatsLostFrameErrors},
-  $sFlowSample->{dot5StatsReceiveCongestions},
-  $sFlowSample->{dot5StatsFrameCopiedErrors},
-  $sFlowSample->{dot5StatsTokenErrors},
-  $sFlowSample->{dot5StatsSoftErrors},
-  $sFlowSample->{dot5StatsHardErrors},
-  $sFlowSample->{dot5StatsSignalLoss},
-  $sFlowSample->{dot5StatsTransmitBeacons},
-  $sFlowSample->{dot5StatsRecoverys},
-  $sFlowSample->{dot5StatsLobeWires},
-  $sFlowSample->{dot5StatsRemoves},
-  $sFlowSample->{dot5StatsSingles},
-  $sFlowSample->{dot5StatsFreqErrors}) = unpack("N18", $$sFlowDatagramPacked);
+  (undef,
+   $sFlowSample->{dot5StatsLineErrors},
+   $sFlowSample->{dot5StatsBurstErrors},
+   $sFlowSample->{dot5StatsACErrors},
+   $sFlowSample->{dot5StatsAbortTransErrors},
+   $sFlowSample->{dot5StatsInternalErrors},
+   $sFlowSample->{dot5StatsLostFrameErrors},
+   $sFlowSample->{dot5StatsReceiveCongestions},
+   $sFlowSample->{dot5StatsFrameCopiedErrors},
+   $sFlowSample->{dot5StatsTokenErrors},
+   $sFlowSample->{dot5StatsSoftErrors},
+   $sFlowSample->{dot5StatsHardErrors},
+   $sFlowSample->{dot5StatsSignalLoss},
+   $sFlowSample->{dot5StatsTransmitBeacons},
+   $sFlowSample->{dot5StatsRecoverys},
+   $sFlowSample->{dot5StatsLobeWires},
+   $sFlowSample->{dot5StatsRemoves},
+   $sFlowSample->{dot5StatsSingles},
+   $sFlowSample->{dot5StatsFreqErrors}) = unpack("a$offset N18", $$sFlowDatagramPacked);
 
-  $$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, 72);
+  $offset += 72;
+  #$$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, 72);
+  $$offsetref = $offset;
 }
 
 
 sub _decodeCounterVg {
 
+  my $offsetref = shift;
   my $sFlowDatagramPacked = shift;
   my $sFlowSample = shift;
+
+  my $offset = $$offsetref;
 
   $sFlowSample->{COUNTERVG} = "COUNTERVG";
 
@@ -1463,7 +1641,8 @@ sub _decodeCounterVg {
   my $dot12HCOutHighPriorityOctets1 = undef;
   my $dot12HCOutHighPriorityOctets2 = undef;
 
-  ($sFlowSample->{dot12InHighPriorityFrames},
+  (undef,
+   $sFlowSample->{dot12InHighPriorityFrames},
    $dot12InHighPriorityOctets1,
    $dot12InHighPriorityOctets2,
    $sFlowSample->{dot12InNormPriorityFrames},
@@ -1482,9 +1661,10 @@ sub _decodeCounterVg {
    $dot12HCInNormPriorityOctets1,
    $dot12HCInNormPriorityOctets2,
    $dot12HCOutHighPriorityOctets1,
-   $dot12HCOutHighPriorityOctets2) = unpack("N20", $$sFlowDatagramPacked);
+   $dot12HCOutHighPriorityOctets2) = unpack("a$offset N20", $$sFlowDatagramPacked);
 
-  $$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, 80);
+  $offset += 80;
+  #$$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, 80);
 
   $sFlowSample->{dot12InHighPriorityOctets} = Math::BigInt->new("$dot12InHighPriorityOctets1");
   $sFlowSample->{dot12InHighPriorityOctets} = $sFlowSample->{dot12InHighPriorityOctets} << 32;
@@ -1509,56 +1689,68 @@ sub _decodeCounterVg {
   $sFlowSample->{dot12HCOutHighPriorityOctets} = Math::BigInt->new("$dot12HCOutHighPriorityOctets1");
   $sFlowSample->{dot12HCOutHighPriorityOctets} = $sFlowSample->{dot12HCOutHighPriorityOctets} << 32;
   $sFlowSample->{dot12HCOutHighPriorityOctets} += $dot12HCOutHighPriorityOctets2;
+  
+  $$offsetref = $offset;
 }
 
 
 sub _decodeCounterVlan {
 
+  my $offsetref = shift;
   my $sFlowDatagramPacked = shift;
   my $sFlowSample = shift;
 
   $sFlowSample->{COUNTERVLAN} = "COUNTERVLAN";
 
+  my $offset = $$offsetref;
   my $octets1 = undef;
   my $octets2 = undef;
 
-  ($sFlowSample->{vlan_id},
+  (undef,
+   $sFlowSample->{vlan_id},
    $octets1,
    $octets2,
    $sFlowSample->{ucastPkts},
    $sFlowSample->{multicastPkts},
    $sFlowSample->{broadcastPkts},
-   $sFlowSample->{discards}) = unpack("N7", $$sFlowDatagramPacked);
+   $sFlowSample->{discards}) = unpack("a$offset N7", $$sFlowDatagramPacked);
   
-  $$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, 28);
+  $offset += 28;
+  #$$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, 28);
 
   $sFlowSample->{octets} = Math::BigInt->new("$octets1");
   $sFlowSample->{octets} = $sFlowSample->{octets} << 32;
   $sFlowSample->{octets} += $octets2;
+   
+  $$offsetref = $offset;
 }
 
 
 sub _decodeCounterProcessor {
 
+  my $offsetref = shift;
   my $sFlowDatagramPacked = shift;
   my $sFlowSample = shift;
   
   $sFlowSample->{COUNTERPROCESSOR} = "COUNTERPROCESSOR";
 
+  my $offset = $$offsetref;
   my $memoryTotal1 = undef;
   my $memoryTotal2 = undef;
   my $memoryFree1 = undef;
   my $memoryFree2 = undef;
 
-  ($sFlowSample->{cpu5s},
+  (undef,
+   $sFlowSample->{cpu5s},
    $sFlowSample->{cpu1m},
    $sFlowSample->{cpu5m},
    $memoryTotal1,
    $memoryTotal2,
    $memoryFree1,
-   $memoryFree2) = unpack("N7", $$sFlowDatagramPacked);
-  
-  $$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, 28);
+   $memoryFree2) = unpack("a$offset N7", $$sFlowDatagramPacked);
+
+  $offset += 28;  
+  #$$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, 28);
 
   $sFlowSample->{memoryTotal} = Math::BigInt->new("$memoryTotal1");
   $sFlowSample->{memoryTotal} = $sFlowSample->{memoryTotal} << 32;
@@ -1567,6 +1759,8 @@ sub _decodeCounterProcessor {
   $sFlowSample->{memoryFree} = Math::BigInt->new("$memoryFree1");
   $sFlowSample->{memoryFree} = $sFlowSample->{memoryFree} << 32;
   $sFlowSample->{memoryFree} += $memoryFree2;
+
+  $$offsetref = $offset;
 } 
 
 1;
@@ -2042,17 +2236,13 @@ http://search.cpan.org/~tels/Math-BigInt-1.77/lib/Math/BigInt.pm
 
 =head1 AUTHOR
 
-Elisa Jasinska <elisa.jasinska@ams-ix.net>
+Elisa Jasinska <elisa@ams-ix.net>
 
-
-=head1 CONTACT
-
-Please send comments or bug reports to <sflow@ams-ix.net>
 
 
 =head1 COPYRIGHT
 
-Copyright (c) 2006 AMS-IX B.V.
+Copyright (c) 2006 Elisa Jasinska.
 
 This package is free software and is provided "as is" without express 
 or implied warranty.  It may be used, redistributed and/or modified 
