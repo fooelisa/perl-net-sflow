@@ -3,5 +3,7 @@ INSTALL
 MANIFEST
 Makefile.PL
 README
-sFlow.pm
+lib/Net/sFlow.pm
+lib/NetPacket/IPv6.pm
 test.pl
+META.yml                                 Module meta-data (added by MakeMaker)

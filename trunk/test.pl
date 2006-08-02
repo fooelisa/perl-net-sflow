@@ -2,14 +2,13 @@
 #
 # test.pl for sFlow.pm
 #
-# Elisa Jasinska <elisa@ams-ix.net>
-# 2006/07/20
+# Elisa Jasinska <elisa.jasinska@ams-ix.net>
+# 2006/07/27
 #
 
 use Test::More tests => 4;
-use sFlow;
 
-BEGIN { use_ok( 'sFlow' ); } 
-require_ok( 'Math::BigInt' );
-require_ok( 'Net::IP' );
-require_ok( 'NetPacket' );
+BEGIN { use_ok( 'Net::sFlow' ); } 
+BEGIN { use_ok( 'Math::BigInt' ); }
+BEGIN { use_ok( 'Net::IP' ); }
+BEGIN { use_ok( 'NetPacket' ); }

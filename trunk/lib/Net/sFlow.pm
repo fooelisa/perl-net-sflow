@@ -2,51 +2,38 @@
 #
 #
 # My first perl project ;)
+# Elisa Jasinska <elisa.jasinska@ams-ix.net>
 #
+# sFlow.pm - 2006/07/28
 #
-# sFlow.pm - 11.07.2006
+# Please send comments or bug reports to <sflow@ams-ix.net>
 #
 #
 # sFlow v4 RFC 3176 
 # http://www.ietf.org/rfc/rfc3176.txt
+# Dataformat: http://jasinska.de/sFlow/sFlowV4FormatDiagram/
 #
 # sFlow v5 Memo
 # http://sflow.org/sflow_version_5.txt
+# Dataformat: http://jasinska.de/sFlow/sFlowV5FormatDiagram/
 #
 #
-# Copyright (c) 2006 Elisa Jasinska <elisa@ams-ix.net>
+# Copyright (c) 2006 AMS-IX B.V.
 #
 # This package is free software and is provided "as is" without express 
 # or implied warranty.  It may be used, redistributed and/or modified 
 # under the terms of the Perl Artistic License (see
 # http://www.perl.com/perl/misc/Artistic.html)
 #
-#
-# v. 0.01.1
-# + values in error strings
-# + rfc urls
-# - newlines in error
-# 
-# v. 0.01.2
-# + sub _decodeIpAddress 
-#
-# v. 0.01.3
-# + bugfix in sub _decodeEthernetFrameData (mac 8byte)
-# + AgentIP also processed in sub _decodeIpAddress
-# - sub _decodeAgentIPv4
-# - sub _decodeAgentIPv6
-# + after error delete current (obviously wrong) data
-#
-# v. 0.01.4
-# + several changes in error handling
-# + in case of error delete last array element instead of hash data
-# + return array reference instead of string in case of error
-#
 
+
+package Net::sFlow;
 
 
 use strict;
 use warnings;
+
+require Exporter;
 
 # convert ip notations
 use Net::IP;
@@ -54,6 +41,7 @@ use Net::IP;
 # decode the packet header data
 use NetPacket::Ethernet;
 use NetPacket::IP;
+use NetPacket::IPv6;
 use NetPacket::UDP;
 use NetPacket::TCP;
 
@@ -61,10 +49,11 @@ use NetPacket::TCP;
 use Math::BigInt;
 
 
-package Net::sFlow;
+our $VERSION = '0.02';
+our @EXPORT_OK = qw(decode);
 
 
-my $VERSION = '0.01.4';
+# constants
 
 use constant SFLOWv4                        => 4;
 use constant SFLOWv5                        => 5;
@@ -519,8 +508,8 @@ sub decode {
 		return (\%sFlowDatagram, \@sFlowSamples, \@errors); 
   }
   
-  $error = "INFO: [sFlow.pm] AgentIP: $sFlowDatagram{AgentIp}, Datagram: $sFlowDatagram{datagramSequenceNumber} - Datagram processed";
-  push @errors, $error;
+#  $error = "INFO: [sFlow.pm] AgentIP: $sFlowDatagram{AgentIp}, Datagram: $sFlowDatagram{datagramSequenceNumber} - Datagram processed";
+#  push @errors, $error;
   return (\%sFlowDatagram, \@sFlowSamples, \@errors);
 
 }
@@ -619,7 +608,7 @@ sub _decodeFlowRecord {
   my $subProcessed = undef;
   
   ($flowType,
-   $sFlowSample->{flowDataLength}) = unpack("NN", $$sFlowDatagramPacked);
+   $flowDataLength) = unpack("NN", $$sFlowDatagramPacked);
 
   $$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, 8);
   
@@ -638,6 +627,10 @@ sub _decodeFlowRecord {
 
     } 
 
+    elsif ($flowTypeFormat == SWITCHDATA_SFLOWv5) {
+      &_decodeSwitchData($sFlowDatagramPacked, $sFlowSample);
+    } 
+
     elsif ($flowTypeFormat == ETHERNETFRAMEDATA_SFLOWv5) {
       &_decodeEthernetFrameData($sFlowDatagramPacked, $sFlowSample);
     } 
@@ -650,10 +643,6 @@ sub _decodeFlowRecord {
       &_decodeIPv6Data($sFlowDatagramPacked, $sFlowSample);
     } 
   
-    elsif ($flowTypeFormat == SWITCHDATA_SFLOWv5) {
-      &_decodeSwitchData($sFlowDatagramPacked, $sFlowSample);
-    } 
-
     elsif ($flowTypeFormat == ROUTERDATA_SFLOWv5) {
       ($subProcessed, $error) = &_decodeRouterData($sFlowDatagramPacked, $sFlowDatagram, $sFlowSample, $sFlowSamples);
 
@@ -822,7 +811,11 @@ sub _decodeHeaderData {
 
   my $header = undef;
   $header = substr ($$sFlowDatagramPacked, 0, $sFlowSample->{HeaderSizeByte});
-  $$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, $sFlowSample->{HeaderSizeByte});
+
+  # we have to cut off a $sFlowSample->{HeaderSizeByte} mod 4 == 0 number of bytes 
+  my $tmp = 4 - ($sFlowSample->{HeaderSizeByte} % 4);
+  $tmp == 4 and $tmp = 0;
+  $$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, $sFlowSample->{HeaderSizeByte} + $tmp);
 
   # unpack ethernet header
   my $ethObj = NetPacket::Ethernet->decode($header);
@@ -831,7 +824,7 @@ sub _decodeHeaderData {
   $sFlowSample->{HeaderEtherDestMac} = $ethObj->{dest_mac};
 
   # unpack ip header
-  my $ipObj = NetPacket::IP->decode($ethObj->{data});
+  my $ipObj = NetPacket::IPv6->decode($ethObj->{data});
 
   $sFlowSample->{HeaderType} = $ethObj->{type};
   $sFlowSample->{HeaderVer} = $ipObj->{ver};
@@ -917,7 +910,7 @@ sub _decodeEthernetFrameData {
   $sFlowSample->{EtherSrcMac} = sprintf("%08x%04x", $EtherSrcMac1, $EtherSrcMac2);
   $sFlowSample->{EtherDestMac} = sprintf("%08x%04x", $EtherDestMac1, $EtherDestMac2);
  
-  $$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, 20);
+  $$sFlowDatagramPacked = substr ($$sFlowDatagramPacked, 24);
 }
 
 
@@ -1590,9 +1583,9 @@ Net::sFlow - decode sFlow datagrams.
 
   use Net::sFlow;
   
-  # decode udp payload 
+  # decode udp payload (if needed)
   my $ethObj = NetPacket::Ethernet->decode($packet);
-  my $ipObj = NetPacket::IP->decode($ethObj->{data});
+  my $ipObj = NetPacket::IPv6->decode($ethObj->{data});
   my $udpObj = NetPacket::UDP->decode($ipObj->{data});
 
   # decode sFlow
@@ -1619,40 +1612,33 @@ Net::sFlow - decode sFlow datagrams.
 
 =head1 DESCRIPTION
 
-Net::sFlow provides a routine to decode sFlow datagrams
+The sFlow module provides a mechanism to parse and decode sFlow
+datagrams. It supports sFlow version 2/4 (RFC 3176 -
+http://www.ietf.org/rfc/rfc3176.txt) and sFlow version 5 (Memo -
+http://sflow.org/sflow_version_5.txt).
 
-
-
-=head1 REQUIREMENTS
-
-NetPacket
-http://search.cpan.org/~atrak/NetPacket/
-
-NetPacket unfortunately doesn't support IPv6, 
-therefore you have to use the modified IP.pm:
-
-NetPacket::IP.pm modified
-http://jasinska.de/sFlow/NetPacket::IP/
-
-Net::IP
-http://search.cpan.org/~manu/Net-IP-1.25/IP.pm
-
-Math::BigInt
-http://search.cpan.org/~tels/Math-BigInt-1.77/lib/Math/BigInt.pm
-
+The module's functionality is provided by a single (exportable)
+function, L<decode|/decode>().
 
 
 =head1 FUNCTIONS
 
-B<Net::sFlow::decode([udp_payload]);>
+=head2 X<decode>decode( UDP_PAYLOAD )
+ 
+($datagram, $samples, $error) = Net::sFlow::decode($udp_data);
 
-Returns a hashreference containing the datagram data, 
-an arrayreference with the sample data (each array element contains a hashreference for one sample)
-and in case of an error a reference to an array containing the error messages.
+Returns a HASH reference containing the datagram data, 
+an ARRAY reference with the sample data (each array element contains a HASH reference for one sample)
+and in case of an error a reference to an ARRAY containing the error messages.
 
-B<RETURN VALUES>
+=head3 Return Values
 
-B<datagram hashreference>
+=over 4
+=item I<$datagram>
+
+
+A HASH reference containing information about the sFlow datagram, with
+the following keys:
 
   sFlowVersion
   AgentIpVersion
@@ -1661,18 +1647,27 @@ B<datagram hashreference>
   agentUptime
   samplesInPacket
 
-  * in case of sFlow v5 also:
+In the case of sFlow v5, there is an additional key:
+
   subAgentId
 
-B<samples arrayreference>
 
-  each enty contain a hashreference with the following keys (if used)
+=item I<$samples>
 
-  * in case of flowsample sFlow <= v4:
+
+Reference to a list of HASH references, each one representing one
+sample. Depending on the type, the hash contains the following additional keys:
+
+
+In case of sFlow <= 4:
+
   sampleType
   sampleSequenceNumber
   sourceIdType
   sourceIdIndex
+
+If it's a sFlow <= 4 flowsample you will get the following additional keys:
+
   samplingRate
   samplePool
   drops
@@ -1681,20 +1676,19 @@ B<samples arrayreference>
   packetDataType
   extendedDataInSample
 
-  * in case of countersample sFlow <= v4:
-  sampleType
-  sampleSequenceNumber
-  sourceIdType
-  sourceIdIndex
+If it's a sFlow <= 4 countersample you will get these additional keys:
+
   counterSamplingInterval
   countersVersion
 
-  * in case of sFlow v5:
+In case of sFlow >= 5 you will first get enterprise, format and length information:
+
   sampleTypeEnterprise
   sampleTypeFormat
   sampleLength
 
-  ** flowsample - enterprise == 0 and format == 1
+In case of a flowsample (enterprise == 0 and format == 1):
+
   sampleSequenceNumber
   sourceIdType
   sourceIdIndex
@@ -1704,37 +1698,30 @@ B<samples arrayreference>
   inputInterface
   outputInterface
   flowRecordsCount
-  flowDataLength
 
-  ** countersample - enterprise == 0 and format == 2
+If it's an expanded flowsample (enterprise == 0 and format == 3)
+you will get these additional keys instead of inputInterface and outputInterface:
+
+  inputInterfaceFormat
+  inputInterfaceValue
+  outputInterfaceFormat
+  outputInterfaceValue
+
+In case of a countersample (enterprise == 0 and format == 2) or
+an expanded countersample (enterprise == 0 and format == 4):
+
   sampleSequenceNumber
   sourceIdType
   sourceIdIndex
   counterRecordsCount
   counterDataLength
 
-  ** expanded flowsample - enterprise == 0 and format == 3
-  sampleSequenceNumber
-  sourceIdType
-  sourceIdIndex
-  samplingRate
-  samplePool
-  drops
-  inputInterfaceFormat
-  inputInterfaceValue
-  outputInterfaceFormat
-  outputInterfaceValue
-  flowRecordsCount
-  flowDataLength
- 
-  ** expanded countersample - enterprise == 0 and format == 4
-  sampleSequenceNumber
-  sourceIdType
-  sourceIdIndex
-  counterRecordsCount
-  counterDataLength 
+Depending on what kind of samples the hardware is taking
+you will get the following additional keys:
 
-  * header data
+
+Header data:
+
   HEADERDATA
   HeaderProtocol
   HeaderFrameLength 
@@ -1762,14 +1749,16 @@ B<samples arrayreference>
   HeaderUDPDestPort
   HeaderICMP
 
-  * ethernet frame data
+Ethernet frame data:
+
   ETHERNETFRAMEDATA
   EtherMacPacketlength
   EtherSrcMac
   EtherDestMac
   EtherPackettype
 
-  * IPv4 data
+IPv4 data:
+
   IPv4DATA
   IPv4Packetlength
   IPv4NextHeaderProtocol
@@ -1780,7 +1769,8 @@ B<samples arrayreference>
   IPv4tcpFlags
   IPv4tos
 
-  * IPv6 data
+IPv6 data:
+
   IPv6DATA
   IPv6Packetlength
   IPv6NextHeaderProto
@@ -1791,21 +1781,24 @@ B<samples arrayreference>
   IPv6tcpFlags
   IPv6Priority
 
-  * switch data
+Switch data:
+
   SWITCHDATA
   SwitchSrcVlan
   SwitchSrcPriority
   SwitchDestVlan
   SwitchDestPriority  
 
-  * router data
+Router data:
+
   ROUTERDATA
   RouterIpVersionNextHopRouter
   RouterIpAddressNextHopRouter
   RouterSrcMask
   RouterDestMask
 
-  * gateway data
+Gateway data:
+
   GATEWAYDATA
   GatewayIpVersionNextHopRouter (only in case of sFlow v5)
   GatewayIpAddressNextHopRouter (only in case of sFlow v5)
@@ -1826,7 +1819,8 @@ B<samples arrayreference>
 
   localPref
 
-  * user data
+User data:
+
   USERDATA
   UserSrcCharset (only in case of sFlow v5)
   UserLengthSrcString
@@ -1835,7 +1829,8 @@ B<samples arrayreference>
   UserLengthDestString
   UserDestString
 
-  * url data (added in sFlow v3)
+Url data (added in sFlow v3):
+
   URLDATA
   UrlDirection
   UrlLength
@@ -1843,9 +1838,11 @@ B<samples arrayreference>
   UrlHostLength (only in case of sFlow v5)
   UrlHost (only in case of sFlow v5)
 
-  only in sFlow v5:
 
-  * mpls data
+The following keys can be only available in sFlow v5:
+
+Mpls data:
+
   MPLSDATA
   MplsIpVersionNextHopRouter
   MplsIpAddressNextHopRouter
@@ -1854,45 +1851,52 @@ B<samples arrayreference>
   MplsOutLabelStackCount
   MplsOutLabelStack (arrayreference containing MplsOutLabels)  
 
-  * nat data
+Nat data:
+
   NATDATA
   NatIpVersionSrcAddress
   NatSrcAddress
   NatIpVersionDestAddress
   NatDestAddress
 
-  * mpls tunnel
+Mpls tunnel:
+
   MPLSTUNNEL
   MplsTunnelLength
   MplsTunnelName
   MplsTunnelId
   MplsTunnelCosValue  
 
-  * mpls vc
+Mpls vc:
+
   MPLSVC
   MplsVcInstanceNameLength
   MplsVcInstanceName
   MplsVcId
   MplsVcLabelCosValue
 
-  * mpls fec
+Mpls fec:
+
   MPLSFEC
   MplsFtnDescrLength
   MplsFtnDescr
   MplsFtnMask
 
-  * mpls lpv fec
+Mpls lpv fec:
+
   MPLSLPVFEC
   MplsFecAddrPrefixLength
 
-  * vlan tunnel
+Vlan tunnel:
+
   VLANTUNNEL
   VlanTunnelLayerStackCount
   VlanTunnelLayerStack (arrayreference containing VlanTunnelLayer entries)
 
-  end of only in sFlow v5
+The following keys are also available in sFlow < 5:
 
-  * counter generic
+Counter generic:
+
   COUNTERGENERIC
   ifIndex
   ifType
@@ -1914,8 +1918,9 @@ B<samples arrayreference>
   ifOutDiscards
   ifOutErrors
   ifPromiscuousMode
-    
-  * counter ethernet
+
+Counter ethernet:
+
   COUNTERETHERNET
   dot3StatsAlignmentErrors
   dot3StatsFCSErrors
@@ -1931,7 +1936,8 @@ B<samples arrayreference>
   dot3StatsInternalMacReceiveErrors
   dot3StatsSymbolErrors
 
-  *  counter tokenring
+Counter tokenring:
+
   COUNTERTOKENRING
   dot5StatsLineErrors
   dot5StatsBurstErrors
@@ -1952,7 +1958,8 @@ B<samples arrayreference>
   dot5StatsSingles
   dot5StatsFreqErrors
 
-  * counter vg
+Counter vg:
+
   COUNTERVG
   dot12InHighPriorityFrames
   dot12InHighPriorityOctets
@@ -1969,7 +1976,8 @@ B<samples arrayreference>
   dot12HCInNormPriorityOctets
   dot12HCOutHighPriorityOctets
 
-  * counter vlan
+Counter vlan:
+
   COUNTERVLAN
   vlan_id
   octets
@@ -1977,8 +1985,9 @@ B<samples arrayreference>
   multicastPkts
   broadcastPkts
   discards
-   
-  * counter processor (only in sFlow v5)
+
+Counter processor (only in sFlow v5):
+
   COUNTERPROCESSOR
   cpu5s
   cpu1m
@@ -1986,10 +1995,21 @@ B<samples arrayreference>
   memoryTotal
   memoryFree 
 
-B<error>
 
-  if an error occurs decode() returns a reference to an array containing strings with the error messages
+=item I<$error>
 
+Reference to a list of error messages.
+
+=back
+
+
+=head1 CAVEATS
+
+The L<decode|/decode> function will blindly attempt to decode the data
+you provide. There are some tests for the appropriate values at various
+places (where it is feasible to test - like enterprises,
+formats, versionnumbers, etc.), but in general the GIGO principle still
+stands: Garbage In / Garbage Out.
 
 
 =head1 SEE ALSO
@@ -1997,14 +2017,20 @@ B<error>
 sFlow v4
 http://www.ietf.org/rfc/rfc3176.txt
 
+Format Diagram v4:
+http://jasinska.de/sFlow/sFlowV4FormatDiagram/
+
 sFlow v5
 http://sflow.org/sflow_version_5.txt
+
+Format Diagram v5:
+http://jasinska.de/sFlow/sFlowV5FormatDiagram/
 
 NetPacket
 http://search.cpan.org/~atrak/NetPacket/
 
-NetPacket::IP.pm modified
-http://jasinska.de/sFlow/NetPacket::IP/
+NetPacket::IPv6.pm modified
+http://jasinska.de/sFlow/NetPacket/
 
 Net::IP
 http://search.cpan.org/~manu/Net-IP-1.25/IP.pm
@@ -2016,13 +2042,17 @@ http://search.cpan.org/~tels/Math-BigInt-1.77/lib/Math/BigInt.pm
 
 =head1 AUTHOR
 
-Elisa Jasinska <elisa@ams-ix.net>
+Elisa Jasinska <elisa.jasinska@ams-ix.net>
 
+
+=head1 CONTACT
+
+Please send comments or bug reports to <sflow@ams-ix.net>
 
 
 =head1 COPYRIGHT
 
-Copyright (c) 2006 Elisa Jasinska.
+Copyright (c) 2006 AMS-IX B.V.
 
 This package is free software and is provided "as is" without express 
 or implied warranty.  It may be used, redistributed and/or modified 
