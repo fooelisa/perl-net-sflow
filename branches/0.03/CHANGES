@@ -9,7 +9,10 @@ v. 0.02
 
 v. 0.03
   + offset for unpack to avoid substr
+  + single quotes in case no double quotes needed
+  + dereference data only once in subs
+  + Net::IP:bintoip() replaced
 
 
 Elisa Jasinska <elisa.jasinska@ams-ix.net>
-2006/07/24
+2006/08/08

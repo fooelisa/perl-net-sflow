@@ -10,7 +10,6 @@ make install
 REQUIRED MODULES
 
 Math::BigInt
-Net::IP
 NetPacket + additional IPv6.pm
 
 
@@ -24,4 +23,4 @@ http://jasinska.de/sFlow/NetPacket/
 
 
 Elisa Jasinska <elisa.jasinska@ams-ix.net>
-2006/07/27
+2006/08/08
