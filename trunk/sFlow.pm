@@ -4,7 +4,7 @@
 # My first perl project ;)
 # Elisa Jasinska <elisa.jasinska@ams-ix.net>
 #
-# sFlow.pm - 2006/07/28
+# sFlow.pm - 2006/08/08
 #
 # Please send comments or bug reports to <sflow@ams-ix.net>
 #
@@ -49,7 +49,7 @@ use NetPacket::TCP;
 use Math::BigInt;
 
 
-our $VERSION = '0.03';
+our $VERSION = '0.04';
 our @EXPORT_OK = qw(decode);
 
 

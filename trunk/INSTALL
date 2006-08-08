@@ -11,16 +11,6 @@ REQUIRED MODULES
 
 Math::BigInt
 Net::IP
-NetPacket + additional IPv6.pm
-
-
-NOTE ABOUT IPv6.pm
-
-As NetPacket::IP is not supporting IPv6 I released a modified IP.pm 
-(called IPv6.pm) which includes IPv6 decoding. The file is located in 
-lib/NetPacket/IPv6.pm and will be copied during the installation.
-In case of problems you can also download the file here:
-http://jasinska.de/sFlow/NetPacket/
 
 
 Elisa Jasinska <elisa.jasinska@ams-ix.net>

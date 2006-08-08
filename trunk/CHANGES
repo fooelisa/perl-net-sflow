@@ -10,6 +10,10 @@ v. 0.02
 v. 0.03
   + offset for unpack to avoid substr
 
+v. 0.04
+  + decoding ethernet/tcp/ip header in sFlow.pm
+
+
 
 Elisa Jasinska <elisa.jasinska@ams-ix.net>
 2006/07/24
