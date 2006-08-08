@@ -6,7 +6,7 @@
 # Encoding part by Stephanie Wehner, atrak@itsx.com
 #
 # IPv6 decoding added by Elisa Jasinska, <elisa.jasinska@ams-ix.net>
-# 2006/08/08
+# 2006/07/27
 #
 # $Id: IP.pm,v 1.16 2001/07/29 23:45:00 tpot Exp $
 #
@@ -272,8 +272,11 @@ sub decode {
         else { ($self->{data}) = unpack('a*',$pkt) }
  
         # convert 128 bit ip to right notation
-	      $self->{src_ip} = join(':', unpack('H4H4H4H4H4H4H4H4', $self->{src_ip}));
-	      $self->{dest_ip} = join(':', unpack('H4H4H4H4H4H4H4H4', $self->{dest_ip}));
+	$self->{src_ip} = join(':', unpack('H4H4H4H4H4H4H4H4', $self->{src_ip}));
+	$self->{dest_ip} = join(':', unpack('H4H4H4H4H4H4H4H4', $self->{dest_ip}));
+	
+        # $self->{src_ip} = Net::IP::ip_bintoip($self->{src_ip},6);
+        # $self->{dest_ip} = Net::IP::ip_bintoip($self->{dest_ip},6);
       }
     }
 
