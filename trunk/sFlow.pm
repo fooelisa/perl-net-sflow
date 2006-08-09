@@ -891,6 +891,8 @@ sub _decodeHeaderData {
 
     $sFlowSample->{HeaderVer} = 4;
     (undef, $sFlowSample->{HeaderDatalen}) = unpack('nn', $ipdata);
+    # add ethenet header length
+    $sFlowSample->{HeaderDatalen} += 14;
   }
 
   elsif ($type eq '86dd') {
@@ -899,6 +901,8 @@ sub _decodeHeaderData {
     (undef, $sFlowSample->{HeaderDatalen}) = unpack('Nn', $ipdata);
     # add v6 header (not included in v6)
     $sFlowSample->{HeaderDatalen} += 40;
+    # add ethenet header length
+    $sFlowSample->{HeaderDatalen} += 14;
   }
 
   $$offsetref = $offset;
