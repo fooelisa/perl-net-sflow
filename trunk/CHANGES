@@ -9,11 +9,13 @@ v. 0.02
 
 v. 0.03
   + offset for unpack to avoid substr
+  + single quotes in case no double quotes needed
+  + dereference data only once in subs
+  + Net::IP:bintoip() replaced
 
-v. 0.04
-  + decoding ethernet/tcp/ip header in sFlow.pm
-
+v. 0.03X
+  + ether/ip/tcp/... header decoding also in sFlow.pm (much faster!)
 
 
 Elisa Jasinska <elisa.jasinska@ams-ix.net>
-2006/07/24
+2006/08/08
