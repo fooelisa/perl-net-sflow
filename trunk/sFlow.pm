@@ -108,13 +108,13 @@ use constant PROCESSORCOUNTER_SFLOWv5       => 1001;
 
 # ethernet header constants
 
-use constant ETH_TYPE_IP                    => 0x0800;
-use constant ETH_TYPE_ARP                   => 0x0806;
-use constant ETH_TYPE_APPLETALK             => 0x809b;
-use constant ETH_TYPE_RARP                  => 0x8035;
-use constant ETH_TYPE_SNMP                  => 0x814c;
-use constant ETH_TYPE_IPv6                  => 0x86dd;
-use constant ETH_TYPE_PPP                   => 0x880b;
+use constant ETH_TYPE_IP                    => '0800';
+use constant ETH_TYPE_ARP                   => '0806';
+use constant ETH_TYPE_APPLETALK             => '809b';
+use constant ETH_TYPE_RARP                  => '8035';
+use constant ETH_TYPE_SNMP                  => '814c';
+use constant ETH_TYPE_IPv6                  => '86dd';
+use constant ETH_TYPE_PPP                   => '880b';
 
 
 
@@ -880,14 +880,26 @@ sub _decodeHeaderData {
 
   my($sm_lo, $sm_hi, $dm_lo, $dm_hi, $type, $ipdata);
 
-  ($dm_hi, $dm_lo, $sm_hi, $sm_lo, $type, $ipdata) = unpack('NnNnna*', $header);
+  ($dm_hi, $dm_lo, $sm_hi, $sm_lo, $type, $ipdata) = unpack('NnNnH4a*', $header);
 
   # Convert MAC addresses to hex string to avoid representation problems
 
   $sFlowSample->{HeaderEtherSrcMac} = sprintf("%08x%04x", $sm_hi, $sm_lo);
   $sFlowSample->{HeaderEtherDestMac} = sprintf("%08x%04x", $dm_hi, $dm_lo);
 
-  $sFlowSample->{HeaderVer} = $type;
+  if ($type eq '0800') {
+
+    $sFlowSample->{HeaderVer} = 4;
+    (undef, $sFlowSample->{HeaderDatalen}) = unpack('nn', $ipdata);
+  }
+
+  elsif ($type eq '86dd') {
+
+    $sFlowSample->{HeaderVer} = 6;
+    (undef, $sFlowSample->{HeaderDatalen}) = unpack('Nn', $ipdata);
+    # add v6 header (not included in v6)
+    $sFlowSample->{HeaderDatalen} += 40;
+  }
 
   $$offsetref = $offset;
   return (1, undef);
