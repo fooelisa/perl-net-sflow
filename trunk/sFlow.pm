@@ -905,6 +905,16 @@ sub _decodeHeaderData {
     $sFlowSample->{HeaderDatalen} += 14;
   }
 
+  elsif ($type eq '0806') {
+    # ARP 
+    $sFlowSample->{HeaderVer} = 1;
+  }
+
+  else {
+    # unknown
+    $sFlowSample->{HeaderVer} = 0;
+  }
+
   $$offsetref = $offset;
   return (1, undef);
   
