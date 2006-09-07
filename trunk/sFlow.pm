@@ -4,7 +4,7 @@
 # My first perl project ;)
 # Elisa Jasinska <elisa.jasinska@ams-ix.net>
 #
-# sFlow.pm - 2006/08/08
+# sFlow.pm - 2006/09/06
 #
 # Please send comments or bug reports to <sflow@ams-ix.net>
 #
@@ -563,7 +563,7 @@ sub _decodeIpAddress {
 
   if (defined($DatagramOrSampleData)) {
     if ($IpVersion == IPv4) {  
-      (undef, $sFlowDatagram->{$keyName}) = unpack("a$offset B32", $sFlowDatagramPacked);
+      (undef, $sFlowDatagram->{$keyName}) = unpack("a$offset N", $sFlowDatagramPacked);
       $sFlowDatagram->{$keyName} = &_bin2ip($sFlowDatagram->{$keyName});
       $offset += 4;
     }
@@ -577,7 +577,7 @@ sub _decodeIpAddress {
 
   else {
     if ($IpVersion == IPv4) {
-      ($sFlowSample->{$keyName}) = unpack("a$offset B32", $sFlowDatagramPacked);
+      (undef, $sFlowSample->{$keyName}) = unpack("a$offset B32", $sFlowDatagramPacked);
       $sFlowSample->{$keyName} = &_bin2ip($sFlowSample->{$keyName});
       $offset += 4;
     }
@@ -1256,13 +1256,13 @@ sub _decodeMplsData {
     return (undef, $error); 
   }
  
-  (undef, $sFlowSample->{MplsInLabesStackCount}) = unpack("a$offset N", $sFlowDatagramPacked); 
+  (undef, $sFlowSample->{MplsInLabelStackCount}) = unpack("a$offset N", $sFlowDatagramPacked); 
   $offset += 4;
   
   my @MplsInLabelStack = ();
   $sFlowSample->{MplsInLabelStack} = \@MplsInLabelStack;
   
-  for (my $MplsInLabelStackCount = 0; $MplsInLabelStackCount < $sFlowSample->{MplsInLabesStackCount}; $MplsInLabelStackCount++) {
+  for (my $MplsInLabelStackCount = 0; $MplsInLabelStackCount < $sFlowSample->{MplsInLabelStackCount}; $MplsInLabelStackCount++) {
     (undef, my $MplsInLabel) = unpack("a$offset N", $sFlowDatagramPacked);
     push @MplsInLabelStack, $MplsInLabel;
     $offset += 4;
@@ -1274,7 +1274,7 @@ sub _decodeMplsData {
   my @MplsOutLabelStack = ();
   $sFlowSample->{MplsOutLabelStack} = \@MplsInLabelStack;
 
-  for (my $MplsOutLabelStackCount = 0; $MplsOutLabelStackCount < $sFlowSample->{MplsOutLabesStackCount}; $MplsOutLabelStackCount++) {
+  for (my $MplsOutLabelStackCount = 0; $MplsOutLabelStackCount < $sFlowSample->{MplsOutLabelStackCount}; $MplsOutLabelStackCount++) {
     (undef, my $MplsOutLabel) = unpack("a$offset N", $sFlowDatagramPacked);
     push @MplsOutLabelStack, $MplsOutLabel;
     $offset += 4;
@@ -1727,30 +1727,39 @@ Net::sFlow - decode sFlow datagrams.
 =head1 SYNOPSIS
 
   use Net::sFlow;
+  use IO::Socket::INET;
   
-  # decode udp payload (if needed)
-  my $ethObj = NetPacket::Ethernet->decode($packet);
-  my $ipObj = NetPacket::IPv6->decode($ethObj->{data});
-  my $udpObj = NetPacket::UDP->decode($ipObj->{data});
+  my $sock = IO::Socket::INET->new( LocalPort => '6343',
+                                    Proto     => 'udp')
+                               or die "Can't bind : $@\n";
 
-  # decode sFlow
-  my ($sFlowDatagram, $sFlowSamples, $error) = Net::sFlow::decode($udpObj->{data});
-
-  # print errors
-  foreach my $error (@{$errors}) {
-    warn "$error";
+  while ($sock->recv($packet,1548)) {
+    &processPacket($packet);
   }
+  die "Socket recv: $!";
 
-  # print sflow data
+  sub processPacket {
 
-  print "===Datagram===\n";
-  print "sFlow version: $sFlowDatagram->{sFlowVersion}\n";
-  print "datagram sequence number: $sFlowDatagram->{datagramSequenceNumber}\n";
+    my $sFlowPacket = shift;
 
-  foreach my $sFlowSample (@{$printSamples}) {
-    print "\n";
-    print "---Sample---\n";
-    print "sample sequence number: $sFlowSample->{sampleSequenceNumber}\n";
+    my ($sFlowDatagramRef, $sFlowSamplesRef, $errorsRef) = Net::sFlow::decode($sFlowPacket);
+
+    # print errors
+      foreach my $error (@{$errorsRef}) {
+      warn "$error";
+    }
+
+    # print sflow data
+    print "===Datagram===\n";
+    print "sFlow version: $sFlowDatagramRef->{sFlowVersion}\n";
+    print "datagram sequence number: $sFlowDatagramRef->{datagramSequenceNumber}\n";
+
+    foreach my $sFlowSample (@{$printSamplesRef}) {
+      print "\n";
+      print "---Sample---\n";
+      print "sample sequence number: $sFlowSample->{sampleSequenceNumber}\n";
+    }
+
   }
 
 
@@ -1878,17 +1887,7 @@ Header data:
   HeaderEtherDestMac
   HeaderVer
   HeaderDatalen
-  HeaderNexth
-  HeaderProto
-  HeaderSrcIP
-  HeaderDestIP
 
-  NoTransportLayer
-  HeaderTCPSrcPort
-  HeaderTCPDestPort
-  HeaderUDPSrcPort
-  HeaderUDPDestPort
-  HeaderICMP
 
 Ethernet frame data:
 
@@ -1987,7 +1986,7 @@ Mpls data:
   MPLSDATA
   MplsIpVersionNextHopRouter
   MplsIpAddressNextHopRouter
-  MplsInLabesStackCount
+  MplsInLabelStackCount
   MplsInLabelStack (arrayreference containing MplsInLabels)
   MplsOutLabelStackCount
   MplsOutLabelStack (arrayreference containing MplsOutLabels)  
@@ -2166,12 +2165,6 @@ http://sflow.org/sflow_version_5.txt
 
 Format Diagram v5:
 http://jasinska.de/sFlow/sFlowV5FormatDiagram/
-
-NetPacket
-http://search.cpan.org/~atrak/NetPacket/
-
-NetPacket::IPv6.pm modified
-http://jasinska.de/sFlow/NetPacket/
 
 Math::BigInt
 http://search.cpan.org/~tels/Math-BigInt-1.77/lib/Math/BigInt.pm

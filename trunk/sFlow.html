@@ -45,30 +45,39 @@
 <h1><a name="synopsis">SYNOPSIS</a></h1>
 <pre>
   use Net::sFlow;
+  use IO::Socket::INET;
   
-  # decode udp payload (if needed)
-  my $ethObj = NetPacket::Ethernet-&gt;decode($packet);
-  my $ipObj = NetPacket::IPv6-&gt;decode($ethObj-&gt;{data});
-  my $udpObj = NetPacket::UDP-&gt;decode($ipObj-&gt;{data});</pre>
+  my $sock = IO::Socket::INET-&gt;new( LocalPort =&gt; '6343',
+                                    Proto     =&gt; 'udp')
+                               or die &quot;Can't bind : $@\n&quot;;</pre>
 <pre>
-  # decode sFlow
-  my ($sFlowDatagram, $sFlowSamples, $error) = Net::sFlow::decode($udpObj-&gt;{data});</pre>
+  while ($sock-&gt;recv($packet,1548)) {
+    &amp;processPacket($packet);
+  }
+  die &quot;Socket recv: $!&quot;;</pre>
 <pre>
-  # print errors
-  foreach my $error (@{$errors}) {
-    warn &quot;$error&quot;;
-  }</pre>
+  sub processPacket {</pre>
 <pre>
-  # print sflow data</pre>
+    my $sFlowPacket = shift;</pre>
 <pre>
-  print &quot;===Datagram===\n&quot;;
-  print &quot;sFlow version: $sFlowDatagram-&gt;{sFlowVersion}\n&quot;;
-  print &quot;datagram sequence number: $sFlowDatagram-&gt;{datagramSequenceNumber}\n&quot;;</pre>
+    my ($sFlowDatagramRef, $sFlowSamplesRef, $errorsRef) = Net::sFlow::decode($sFlowPacket);</pre>
 <pre>
-  foreach my $sFlowSample (@{$printSamples}) {
-    print &quot;\n&quot;;
-    print &quot;---Sample---\n&quot;;
-    print &quot;sample sequence number: $sFlowSample-&gt;{sampleSequenceNumber}\n&quot;;
+    # print errors
+      foreach my $error (@{$errorsRef}) {
+      warn &quot;$error&quot;;
+    }</pre>
+<pre>
+    # print sflow data
+    print &quot;===Datagram===\n&quot;;
+    print &quot;sFlow version: $sFlowDatagramRef-&gt;{sFlowVersion}\n&quot;;
+    print &quot;datagram sequence number: $sFlowDatagramRef-&gt;{datagramSequenceNumber}\n&quot;;</pre>
+<pre>
+    foreach my $sFlowSample (@{$printSamplesRef}) {
+      print &quot;\n&quot;;
+      print &quot;---Sample---\n&quot;;
+      print &quot;sample sequence number: $sFlowSample-&gt;{sampleSequenceNumber}\n&quot;;
+    }</pre>
+<pre>
   }</pre>
 <p>
 </p>
@@ -225,20 +234,7 @@ you will get the following additional keys:</p>
   HeaderEtherSrcMac
   HeaderEtherDestMac
   HeaderVer
-  HeaderDatalen
-  HeaderNexth
-  HeaderProto
-  HeaderSrcIP
-  HeaderDestIP</pre>
-</dd>
-<dd>
-<pre>
-  NoTransportLayer
-  HeaderTCPSrcPort
-  HeaderTCPDestPort
-  HeaderUDPSrcPort
-  HeaderUDPDestPort
-  HeaderICMP</pre>
+  HeaderDatalen</pre>
 </dd>
 <dd>
 <p>Ethernet frame data:</p>
@@ -579,19 +575,15 @@ stands: Garbage In / Garbage Out.</p>
 <p>sFlow v4
 <a href="http://www.ietf.org/rfc/rfc3176.txt">http://www.ietf.org/rfc/rfc3176.txt</a></p>
 <p>Format Diagram v4:
-<a href="http://jasinska.de/sFlow/sFlowV4FormatDiagram/">http://jasinska.de/sFlow/sFlowV4FormatDiagram/</a></p>
+<a href="http://jasinska.de/sFlow/sFlowV4FormatDiagram/">http://jasinska.de/sFlow/sFlowV4FormatDiagram/</a>
+
+</p>
 <p>sFlow v5
-<a href="http://sflow.org/sflow_version_5.txt">http://sflow.org/sflow_version_5.txt</a></p>
+<a href="http://sflow.org/sflow_version_5.txt">http://sflow.org/sflow_version_5.txt</a>
+
+</p>
 <p>Format Diagram v5:
 <a href="http://jasinska.de/sFlow/sFlowV5FormatDiagram/">http://jasinska.de/sFlow/sFlowV5FormatDiagram/</a>
-
-</p>
-<p>NetPacket
-<a href="http://search.cpan.org/~atrak/NetPacket/">http://search.cpan.org/~atrak/NetPacket/</a>
-
-</p>
-<p>NetPacket::IPv6.pm modified
-<a href="http://jasinska.de/sFlow/NetPacket/">http://jasinska.de/sFlow/NetPacket/</a>
 
 </p>
 <p>Math::BigInt
