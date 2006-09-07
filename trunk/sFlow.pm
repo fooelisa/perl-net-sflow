@@ -4,7 +4,7 @@
 # My first perl project ;)
 # Elisa Jasinska <elisa.jasinska@ams-ix.net>
 #
-# sFlow.pm - 2006/09/06
+# sFlow.pm - 2006/09/07
 #
 # Please send comments or bug reports to <sflow@ams-ix.net>
 #
