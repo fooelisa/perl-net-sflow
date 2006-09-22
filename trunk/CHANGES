@@ -20,7 +20,9 @@ v. 0.03X
 $sFlowDatagramPacked);
   + s/Labes/Label/
 
+v. 0.04X
+  + off by one error fixed
 
 
 Elisa Jasinska <elisa.jasinska@ams-ix.net>
-2006/09/11
+2006/09/22

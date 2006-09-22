@@ -41,7 +41,7 @@ require Exporter;
 use Math::BigInt;
 
 
-our $VERSION = '0.03X';
+our $VERSION = '0.04X';
 our @EXPORT_OK = qw(decode);
 
 
