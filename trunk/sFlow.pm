@@ -170,7 +170,7 @@ sub decode {
     $offset += (3 * 4);
 
     # parse samples
-    for my $samplesCount (0 .. $sFlowDatagram{samplesInPacket}) {
+    for my $samplesCount (0 .. $sFlowDatagram{samplesInPacket} - 1) {
 
       my %sFlowSample = ();
       push @sFlowSamples, \%sFlowSample;
@@ -448,7 +448,7 @@ sub decode {
     $offset += 12;
 
     # parse samples
-    for my $samplesCount (0 .. $sFlowDatagram{samplesInPacket} -1) {
+    for my $samplesCount (0 .. $sFlowDatagram{samplesInPacket} - 1) {
 
       my %sFlowSample = ();
       push @sFlowSamples, \%sFlowSample;
