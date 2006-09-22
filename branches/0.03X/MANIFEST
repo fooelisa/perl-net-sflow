@@ -1,0 +1,8 @@
+CHANGES
+INSTALL
+MANIFEST
+Makefile.PL
+README
+sFlow.pm
+test.pl
+META.yml                                 Module meta-data (added by MakeMaker)

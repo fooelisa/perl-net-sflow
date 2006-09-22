@@ -1,0 +1,26 @@
+
+Revision history for sFlow.pm
+
+
+v. 0.02
+  + fix: sub _decodeEthernetFrameData, substr 24 not 20
+  - flowDataLength not in sample hash anymore
+  + fix: header size byte for substr must be mod 4 == 0
+
+v. 0.03
+  + offset for unpack to avoid substr
+  + single quotes in case no double quotes needed
+  + dereference data only once in subs
+  + Net::IP:bintoip() replaced
+
+v. 0.03X
+  + ether header decoding also in sFlow.pm (much faster!)
+  + agent ip fixed, N instead of B32
+  + undef added, line: ($sFlowSample->{$keyName}) = unpack("a$offset B32",
+$sFlowDatagramPacked);
+  + s/Labes/Label/
+
+
+
+Elisa Jasinska <elisa.jasinska@ams-ix.net>
+2006/09/11
