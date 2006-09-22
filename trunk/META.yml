@@ -1,7 +1,7 @@
 # http://module-build.sourceforge.net/META-spec.html
 #XXXXXXX This is a prototype!!!  It will change in the future!!! XXXXX#
 name:         Net-sFlow
-version:      0.03X
+version:      0.04X
 version_from: sFlow.pm
 installdirs:  site
 requires:

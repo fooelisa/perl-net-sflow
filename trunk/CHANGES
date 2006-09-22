@@ -16,12 +16,14 @@ v. 0.03
 v. 0.03X
   + ether header decoding also in sFlow.pm (much faster!)
   + agent ip fixed, N instead of B32
-  + undef added, line: ($sFlowSample->{$keyName}) = unpack("a$offset B32",
-$sFlowDatagramPacked);
+  + undef added, line: ($sFlowSample->{$keyName}) = 
+    unpack("a$offset B32", $sFlowDatagramPacked);
   + s/Labes/Label/
 
 v. 0.04X
+  + formatiing
   + off by one error fixed
+  + some more bugs fixed
 
 
 Elisa Jasinska <elisa.jasinska@ams-ix.net>
