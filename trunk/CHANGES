@@ -14,7 +14,7 @@ v. 0.03
   + Net::IP:bintoip() replaced
 
 v. 0.03X
-  + ether/ip/tcp/... header decoding also in sFlow.pm (much faster!)
+  + ether header decoding also in sFlow.pm (much faster!)
   + agent ip fixed, N instead of B32
   + undef added, line: ($sFlowSample->{$keyName}) = unpack("a$offset B32",
 $sFlowDatagramPacked);
@@ -23,4 +23,4 @@ $sFlowDatagramPacked);
 
 
 Elisa Jasinska <elisa.jasinska@ams-ix.net>
-2006/09/07
+2006/09/11
