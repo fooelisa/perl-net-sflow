@@ -6,7 +6,7 @@
 # With many thanks to Tobias Engel for his help and support!
 #
 #
-# sFlow.pm - 2006/09/22
+# sFlow.pm - 2006/11/07
 #
 # Please send comments or bug reports to <sflow@ams-ix.net>
 #
@@ -41,7 +41,7 @@ require Exporter;
 use Math::BigInt;
 
 
-our $VERSION = '0.04X';
+our $VERSION = '0.05';
 our @EXPORT_OK = qw(decode);
 
 
@@ -1085,7 +1085,7 @@ sub _decodeHeaderData {
   # header size in bit
   $sFlowSample->{HeaderSizeBit} = $sFlowSample->{HeaderSizeByte} * 8;
 
-  my $header = substr ($sFlowDatagramPacked, $offset, $sFlowSample->{HeaderSizeByte});
+  my $sFlowSample->{HeaderBin} = substr ($sFlowDatagramPacked, $offset, $sFlowSample->{HeaderSizeByte});
 
   # we have to cut off a $sFlowSample->{HeaderSizeByte} mod 4 == 0 number of bytes 
   my $tmp = 4 - ($sFlowSample->{HeaderSizeByte} % 4);
@@ -1100,7 +1100,7 @@ sub _decodeHeaderData {
 
   my($sm_lo, $sm_hi, $dm_lo, $dm_hi, $type, $ipdata);
 
-  ($dm_hi, $dm_lo, $sm_hi, $sm_lo, $type, $ipdata) = unpack('NnNnH4a*', $header);
+  ($dm_hi, $dm_lo, $sm_hi, $sm_lo, $type, $ipdata) = unpack('NnNnH4a*', $sFlowSample->{HeaderBin});
 
   # Convert MAC addresses to hex string to avoid representation problems
 
@@ -2174,6 +2174,7 @@ and in case of an error a reference to an ARRAY containing the error messages.
 =head3 Return Values
 
 =over 4
+
 =item I<$datagram>
 
 
@@ -2268,6 +2269,7 @@ Header data:
   HeaderStrippedLength
   HeaderSizeByte
   HeaderSizeBit
+  HeaderBin
 
   HeaderEtherSrcMac
   HeaderEtherDestMac

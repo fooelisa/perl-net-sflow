@@ -25,6 +25,12 @@ v. 0.04X
   + off by one error fixed
   + some more bugs fixed
 
+v. 0.05
+  + removed chars from version
+  + binary header for debugging retured as well ($sFlowSample->{HeaderBin})
+  + LICENSE file added
+  + pod error fixed
+  + example script sFluxDebug.pl added
 
 Elisa Jasinska <elisa.jasinska@ams-ix.net>
-2006/09/22
+2006/11/7
