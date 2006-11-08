@@ -31,6 +31,7 @@ v. 0.05
   + LICENSE file added
   + pod error fixed
   + example script sFluxDebug.pl added
+  + use Test::Pod in test.pl
 
 Elisa Jasinska <elisa.jasinska@ams-ix.net>
-2006/11/7
+2006/11/8

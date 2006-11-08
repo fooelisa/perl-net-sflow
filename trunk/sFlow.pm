@@ -6,7 +6,7 @@
 # With many thanks to Tobias Engel for his help and support!
 #
 #
-# sFlow.pm - 2006/11/07
+# sFlow.pm - 2006/11/8
 #
 # Please send comments or bug reports to <sflow@ams-ix.net>
 #
@@ -1085,7 +1085,7 @@ sub _decodeHeaderData {
   # header size in bit
   $sFlowSample->{HeaderSizeBit} = $sFlowSample->{HeaderSizeByte} * 8;
 
-  my $sFlowSample->{HeaderBin} = substr ($sFlowDatagramPacked, $offset, $sFlowSample->{HeaderSizeByte});
+  $sFlowSample->{HeaderBin} = substr ($sFlowDatagramPacked, $offset, $sFlowSample->{HeaderSizeByte});
 
   # we have to cut off a $sFlowSample->{HeaderSizeByte} mod 4 == 0 number of bytes 
   my $tmp = 4 - ($sFlowSample->{HeaderSizeByte} % 4);
