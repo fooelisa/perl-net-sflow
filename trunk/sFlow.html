@@ -218,7 +218,7 @@ an expanded countersample (enterprise == 0 and format == 4):</p>
 you will get the following additional keys:</p>
 </dd>
 <dd>
-<p>Header data:</p>
+<p>Header data (sFlow format):</p>
 </dd>
 <dd>
 <pre>
@@ -231,11 +231,14 @@ you will get the following additional keys:</p>
   HeaderBin</pre>
 </dd>
 <dd>
+<p>Additional Header data decoded from the raw packet header:</p>
+</dd>
+<dd>
 <pre>
   HeaderEtherSrcMac
   HeaderEtherDestMac
-  HeaderVer
-  HeaderDatalen</pre>
+  HeaderVer (IPv4 == 4, IPv6 == 6, ARP == 1, OTHER == 0)
+  HeaderDatalen (of the whole packet including ethernet header)</pre>
 </dd>
 <dd>
 <p>Ethernet frame data:</p>
@@ -588,7 +591,6 @@ stands: Garbage In / Garbage Out.</p>
 
 </p>
 <p>Math::BigInt
-<a href="http://search.cpan.org/~tels/Math-BigInt-1.77/lib/Math/BigInt.pm">http://search.cpan.org/~tels/Math-BigInt-1.77/lib/Math/BigInt.pm</a>
 
 </p>
 <p>
