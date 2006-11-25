@@ -30,10 +30,8 @@ v. 0.05
   + LICENSE file added
   + pod error fixed
   + example script sFluxDebug.pl added
-  + use Test::Pod in test.pl
-  + use Test::Pod::Coverage in test.pl
-  + check for vlan tag and 4 bytes to length if present
-  + ARP header lengt returbned as 64 Byte
+  + check for vlan tag and add 4 bytes to length if present
+  + ARP header length returned as 64 byte
 
 
 Elisa Jasinska <elisa.jasinska@ams-ix.net>
