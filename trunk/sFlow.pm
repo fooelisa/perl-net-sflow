@@ -1154,6 +1154,10 @@ sub _decodeHeaderData {
     $sFlowSample->{HeaderDatalen} += 4;
   }
 
+  if ($sFlowSample->{HeaderDatalen} < 64) {
+    $sFlowSample->{HeaderDatalen} = 64;
+  }
+
   $$offsetref = $offset;
   return (1, undef);
   
