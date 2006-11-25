@@ -6,7 +6,7 @@
 # With many thanks to Tobias Engel for his help and support!
 #
 #
-# sFlow.pm - 2006/11/8
+# sFlow.pm - 2006/11/25
 #
 # Please send comments or bug reports to <sflow@ams-ix.net>
 #
@@ -36,7 +36,6 @@ use strict;
 use warnings;
 
 require Exporter;
-
 # 64bit integers
 use Math::BigInt;
 
@@ -1056,6 +1055,7 @@ sub _decodeHeaderData {
 
   my $sFlowDatagramPacked = $$sFlowDatagramPackedRef;
   my $offset = $$offsetref;
+  my $vlanTag = 0;
 
   $sFlowSample->{HEADERDATA} = 'HEADERDATA';
 
@@ -1093,7 +1093,6 @@ sub _decodeHeaderData {
 
   $offset += ($sFlowSample->{HeaderSizeByte} + $tmp);
 
-
   # unpack ethernet header
   # copy of the decode function of NetPacket::Ethernet
   # Copyright (c) 2001 Tim Potter.
@@ -1107,6 +1106,17 @@ sub _decodeHeaderData {
   $sFlowSample->{HeaderEtherSrcMac} = sprintf("%08x%04x", $sm_hi, $sm_lo);
   $sFlowSample->{HeaderEtherDestMac} = sprintf("%08x%04x", $dm_hi, $dm_lo);
 
+
+  # analyze ether type
+
+  if ($type eq '8100') {
+
+    (undef, $type, $ipdata) = unpack('nH4a*', $ipdata);
+    # add 4 bytes to ethernet header length because of vlan tag
+    # this is done later on, if $add_to_ether is set
+    $vlanTag = 1;
+
+  }
 
   if ($type eq '0800') {
 
@@ -1131,11 +1141,17 @@ sub _decodeHeaderData {
   elsif ($type eq '0806') {
     # ARP 
     $sFlowSample->{HeaderVer} = 1;
+    $sFlowSample->{HeaderDatalen} += 64;
   }
 
   else {
     # unknown
     $sFlowSample->{HeaderVer} = 0;
+  }
+
+  # add vlan tag length
+  if ($vlanTag == 1) {
+    $sFlowSample->{HeaderDatalen} += 4;
   }
 
   $$offsetref = $offset;
@@ -2163,7 +2179,7 @@ function, L<decode|/decode>().
 
 =head1 FUNCTIONS
 
-=head2 X<decode>decode( UDP_PAYLOAD )
+=head2 decode( UDP_PAYLOAD )
  
 ($datagram, $samples, $error) = Net::sFlow::decode($udp_data);
 
@@ -2261,7 +2277,7 @@ Depending on what kind of samples the hardware is taking
 you will get the following additional keys:
 
 
-Header data:
+Header data (sFlow format):
 
   HEADERDATA
   HeaderProtocol
@@ -2271,10 +2287,12 @@ Header data:
   HeaderSizeBit
   HeaderBin
 
+Additional Header data decoded from the raw packet header:
+
   HeaderEtherSrcMac
   HeaderEtherDestMac
-  HeaderVer
-  HeaderDatalen
+  HeaderVer (IPv4 == 4, IPv6 == 6, ARP == 1, OTHER == 0)
+  HeaderDatalen (of the whole packet including ethernet header)
 
 
 Ethernet frame data:
@@ -2531,6 +2549,7 @@ Reference to a list of error messages.
 =back
 
 
+
 =head1 CAVEATS
 
 The L<decode|/decode> function will blindly attempt to decode the data
@@ -2538,6 +2557,7 @@ you provide. There are some tests for the appropriate values at various
 places (where it is feasible to test - like enterprises,
 formats, versionnumbers, etc.), but in general the GIGO principle still
 stands: Garbage In / Garbage Out.
+
 
 
 =head1 SEE ALSO
@@ -2555,7 +2575,7 @@ Format Diagram v5:
 http://jasinska.de/sFlow/sFlowV5FormatDiagram/
 
 Math::BigInt
-http://search.cpan.org/~tels/Math-BigInt-1.77/lib/Math/BigInt.pm
+
 
 
 =head1 AUTHOR
@@ -2563,9 +2583,11 @@ http://search.cpan.org/~tels/Math-BigInt-1.77/lib/Math/BigInt.pm
 Elisa Jasinska <elisa.jasinska@ams-ix.net>
 
 
+
 =head1 CONTACT
 
 Please send comments or bug reports to <sflow@ams-ix.net>
+
 
 
 =head1 COPYRIGHT

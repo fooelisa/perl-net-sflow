@@ -4,7 +4,7 @@
 # My first perl project ;)
 # Elisa Jasinska <elisa.jasinska@ams-ix.net>
 #
-# sFluxDebug.pl - 2006/11/7
+# sFluxDebug.pl - 2006/11/23
 #
 # Please send comments or bug reports to <sflow@ams-ix.net>
 #
@@ -47,15 +47,25 @@ my %options = ();
 getopts("f:p:h", \%options)
   or &usage;
 
+
 # print the help
 &usage if $options{h};
 
 
+# prepare arrays for print order
+my $orderHashRef = &preparePrint;
+
 
 # if switch -f read from pcap file
-if (defined($options{f})) { &readFile }
+if (defined($options{f})) { 
+  &readFile($orderHashRef); 
+}
 
-else { &listenPort }
+
+# else just open udp socket
+else { 
+  &listenPort($orderHashRef); 
+}
 
 
 
@@ -81,12 +91,14 @@ sub usage {
 
 sub readFile {
 
+  my $orderHashRef = shift;
+
   my $err = undef;
 
   my $pcap = Net::Pcap::open_offline($options{f}, \$err)
     or die "Can't read '$options{f}': $err\n";
 
-  Net::Pcap::loop($pcap, 0, \&processPcap, "test");
+  Net::Pcap::loop($pcap, 0, \&processPcap, $orderHashRef);
   Net::Pcap::close($pcap);
 }
 
@@ -97,7 +109,7 @@ sub readFile {
 # in case of a pcap file we also use the pcap data
 sub processPcap {
 
-  my($foo, $header, $pcapPacket) = @_;
+  my($orderHashRef, $header, $pcapPacket) = @_;
   
   print "\n\n-------------------------------------------------------------------------------\n";
   print "PCAP length: $header->{len} timestamp in sec:  $header->{tv_sec}\n";
@@ -111,15 +123,17 @@ sub processPcap {
 
   my %sFlowPacket = ();
 
-  $sFlowPacket{srcMac} = $ethObj->{src_mac};
-  $sFlowPacket{destMac} = $ethObj->{dest_mac};
-  $sFlowPacket{srcIP} = $ipObj->{src_ip};
-  $sFlowPacket{destIP} = $ipObj->{dest_ip};
-  $sFlowPacket{srcPort} = $udpObj->{src_port};
-  $sFlowPacket{destPort} = $udpObj->{dest_port};
+  $sFlowPacket{srcMac}    = $ethObj->{src_mac};
+  $sFlowPacket{destMac}   = $ethObj->{dest_mac};
+  $sFlowPacket{srcIP}     = $ipObj->{src_ip};
+  $sFlowPacket{destIP}    = $ipObj->{dest_ip};
+  $sFlowPacket{srcPort}   = $udpObj->{src_port};
+  $sFlowPacket{destPort}  = $udpObj->{dest_port};
 
-  #  print HexDump $udpObj->{data};
-  &processPacket(\%sFlowPacket, $udpObj->{data});
+  # more debug: 
+  # print HexDump $udpObj->{data};
+
+  &processPacket(\%sFlowPacket, $udpObj->{data}, $orderHashRef);
 }
 
 #############################################################################
@@ -127,12 +141,18 @@ sub processPcap {
 
 sub listenPort {
 
+  my $orderHashRef = shift;
+
   my $port = undef;
   my $packet = undef;
 
   if (defined($options{p})) {
+
     $options{p} =~ /^\d+$/ and $options{p} > 0
-      or print "Port must be an integer > 0\n" and &usage;
+
+      or  print("Port must be an integer > 0\n"),
+          &usage;
+
     $port = $options{p};
   }
 
@@ -142,13 +162,13 @@ sub listenPort {
 
   my $sock = IO::Socket::INET->new( LocalPort => $port,
                                     Proto     => 'udp')
-                               or die "Can't bind : $@\n";
+                               or die "Can't bind : $!\n";
 
   print "Port: $port\n";
   print "Listening...\n";
 
   while ($sock->recv($packet,1548)) {
-    &processPacket(undef, $packet);
+    &processPacket(undef, $packet, $orderHashRef);
   }
   die "Socket recv: $!";
 
@@ -162,14 +182,15 @@ sub processPacket {
 
   my $sFlowPacketDataHashRef = shift;
   my $sFlowPacket = shift;
+  my $orderHashRef = shift;
 
   my ($sFlowDatagramHashRef, $sFlowSamplesArrayRef, $errorsArrayRef) =
     Net::sFlow::decode($sFlowPacket);
 
-  &stdout($sFlowPacketDataHashRef, $sFlowDatagramHashRef, $sFlowSamplesArrayRef);
+  &stdout($sFlowPacketDataHashRef, $sFlowDatagramHashRef, $sFlowSamplesArrayRef, $orderHashRef);
 
   foreach my $error (@{$errorsArrayRef}) {
-    print "$errori\n";
+    print "$error\n";
   } 
 
 }
@@ -179,7 +200,7 @@ sub processPacket {
 #############################################################################
 
 
-sub stdout {
+sub preparePrint {
 
   my @packetOrder = (
     "srcMac",
@@ -447,15 +468,32 @@ sub stdout {
     "memoryFree"
   );
 
+  my %orderHash = (
+    'packetOrder'   => \@packetOrder, 
+    'datagramOrder' => \@datagramOrder, 
+    'sampleOrder'   => \@sampleOrder
+  );
+  
+  return(\%orderHash);
+
+}
+
+
+
+#############################################################################
+
+
+sub stdout {
 
   my $sFlowPacketDataHashRef = shift;
   my $sFlowDatagramHashRef = shift;
   my $sFlowSamplesArrayRef = shift;
+  my $orderHashRef = shift;
 
   if (defined($sFlowPacketDataHashRef)) {
     print "\n";
     print "===PcapData===\n";
-    foreach my $packetOrder (@packetOrder) {
+    foreach my $packetOrder (@{$orderHashRef->{packetOrder}}) {
       if (defined($sFlowPacketDataHashRef->{$packetOrder})) {
         print "$packetOrder => $sFlowPacketDataHashRef->{$packetOrder}\n";
       }
@@ -464,7 +502,7 @@ sub stdout {
 
   print "\n\n";
   print "===Datagram===\n";
-  foreach my $datagramOrder (@datagramOrder) {
+  foreach my $datagramOrder (@{$orderHashRef->{datagramOrder}}) {
     if (defined($sFlowDatagramHashRef->{$datagramOrder})) {
       print "$datagramOrder => $sFlowDatagramHashRef->{$datagramOrder}\n";
     }
@@ -473,7 +511,7 @@ sub stdout {
   foreach my $sFlowSampleHashRef (@{$sFlowSamplesArrayRef}) {
     print "\n";
     print "---Sample---\n";
-    foreach my $sampleOrder (@sampleOrder) {
+    foreach my $sampleOrder (@{$orderHashRef->{sampleOrder}}) {
       if (defined($sFlowSampleHashRef->{$sampleOrder})) {
         print "$sampleOrder => $sFlowSampleHashRef->{$sampleOrder}\n";
       }
