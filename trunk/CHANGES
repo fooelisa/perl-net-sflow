@@ -33,9 +33,10 @@ v. 0.05
   + check for vlan tag and add 4 bytes to length if present
   + ARP header length returned as 64 byte
 
-v. 0.06
+v. 0.05-1
   + add padding to datalength if smaller then 64Byte
+  + assume all packets type 'other' as 64 bytes
 
 
 Elisa Jasinska <elisa.jasinska@ams-ix.net>
-2006/11/25
+2006/11/26
