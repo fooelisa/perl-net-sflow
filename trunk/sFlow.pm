@@ -40,7 +40,7 @@ require Exporter;
 use Math::BigInt;
 
 
-our $VERSION = '0.05';
+our $VERSION = '0.06';
 our @EXPORT_OK = qw(decode);
 
 
@@ -1141,12 +1141,13 @@ sub _decodeHeaderData {
   elsif ($type eq '0806') {
     # ARP 
     $sFlowSample->{HeaderVer} = 1;
-    $sFlowSample->{HeaderDatalen} += 64;
+    $sFlowSample->{HeaderDatalen} = 64;
   }
 
   else {
     # unknown
     $sFlowSample->{HeaderVer} = 0;
+    $sFlowSample->{HeaderDatalen} = 64;
   }
 
   # add vlan tag length
