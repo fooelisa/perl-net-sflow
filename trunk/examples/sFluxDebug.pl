@@ -4,12 +4,12 @@
 # My first perl project ;)
 # Elisa Jasinska <elisa.jasinska@ams-ix.net>
 #
-# sFluxDebug.pl - 2006/11/23
+# sFluxDebug.pl - 2007/03/18
 #
 # Please send comments or bug reports to <sflow@ams-ix.net>
 #
 #
-# Copyright (c) 2006 AMS-IX B.V.
+# Copyright (c) 2007 AMS-IX B.V.
 #
 # This package is free software and is provided "as is" without express 
 # or implied warranty.  It may be used, redistributed and/or modified 
@@ -321,9 +321,9 @@ sub preparePrint {
     "GatewayAsSource",
     "GatewayAsSourcePeer",
     "GatewayDestAsPathsCount",
-    # sFlowPathsArray
+    "GatewayDestAsPaths",
     "GatewayLengthCommunitiesList",
-    # sFlowCommunitiesArray
+    "GatewayCommunities",
     "localPref",
 
     "USERDATA",
@@ -512,8 +512,25 @@ sub stdout {
     print "\n";
     print "---Sample---\n";
     foreach my $sampleOrder (@{$orderHashRef->{sampleOrder}}) {
+
       if (defined($sFlowSampleHashRef->{$sampleOrder})) {
-        print "$sampleOrder => $sFlowSampleHashRef->{$sampleOrder}\n";
+        if ($sampleOrder eq "GatewayDestAsPaths") {
+          foreach my $GatewayDestAsPath (@{$sFlowSampleHashRef->{$sampleOrder}}) {
+            print "  asPathSegmentType => $GatewayDestAsPath->{asPathSegmentType}\n";
+            print "  lengthAsList => $GatewayDestAsPath->{lengthAsList}\n";
+            foreach my $as (@{$GatewayDestAsPath->{AsPath}}) {
+              print "    as nr. => $as\n";
+            }
+          }
+        } 
+
+        elsif ($sampleOrder eq "GatewayCommunities") {
+          print "  GatewayCommunities => @{$sFlowSampleHashRef->{GatewayCommunities}}\n";
+        }
+
+        else {
+           print "$sampleOrder => $sFlowSampleHashRef->{$sampleOrder}\n";
+        }
       }
     }
   }

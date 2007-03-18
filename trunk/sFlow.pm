@@ -6,7 +6,7 @@
 # With many thanks to Tobias Engel for his help and support!
 #
 #
-# sFlow.pm - 2006/11/26
+# sFlow.pm - 2007/03/18
 #
 # Please send comments or bug reports to <sflow@ams-ix.net>
 #
@@ -20,7 +20,7 @@
 # Dataformat: http://jasinska.de/sFlow/sFlowV5FormatDiagram/
 #
 #
-# Copyright (c) 2006 AMS-IX B.V.
+# Copyright (c) 2007 AMS-IX B.V.
 #
 # This package is free software and is provided "as is" without express 
 # or implied warranty.  It may be used, redistributed and/or modified 
@@ -40,7 +40,7 @@ require Exporter;
 use Math::BigInt;
 
 
-our $VERSION = '0.05-1';
+our $VERSION = '0.05-2';
 our @EXPORT_OK = qw(decode);
 
 
@@ -109,18 +109,83 @@ use constant PROCESSORCOUNTER_SFLOWv5       => 1001;
 
 # ethernet header constants
 
+use constant ETH_TYPE_UNK                   => '0000';
+use constant ETH_TYPE_XNS_IDP               => '0600';
 use constant ETH_TYPE_IP                    => '0800';
+use constant ETH_TYPE_X25L3                 => '0805';
 use constant ETH_TYPE_ARP                   => '0806';
-use constant ETH_TYPE_APPLETALK             => '809b';
+use constant ETH_TYPE_VINES_IP              => '0bad';
+use constant ETH_TYPE_VINES_ECHO            => '0baf';
+use constant ETH_TYPE_TRAIN                 => '1984';
+use constant ETH_TYPE_CGMP                  => '2001';
+use constant ETH_TYPE_CENTRINO_PROMISC      => '2452';
+use constant ETH_TYPE_3C_NBP_DGRAM          => '3c07';
+use constant ETH_TYPE_EPL_V1                => '3e3f';
+use constant ETH_TYPE_DEC                   => '6000';
+use constant ETH_TYPE_DNA_DL                => '6001';
+use constant ETH_TYPE_DNA_RC                => '6002';
+use constant ETH_TYPE_DNA_RT                => '6003';
+use constant ETH_TYPE_LAT                   => '6004';
+use constant ETH_TYPE_DEC_DIAG              => '6005';
+use constant ETH_TYPE_DEC_CUST              => '6006';
+use constant ETH_TYPE_DEC_SCA               => '6007';
+use constant ETH_TYPE_ETHBRIDGE             => '6558';
+use constant ETH_TYPE_RAW_FR                => '6559';
 use constant ETH_TYPE_RARP                  => '8035';
+use constant ETH_TYPE_DEC_LB                => '8038';
+use constant ETH_TYPE_DEC_LAST              => '8041';
+use constant ETH_TYPE_APPLETALK             => '809b';
+use constant ETH_TYPE_SNA                   => '80d5';
+use constant ETH_TYPE_AARP                  => '80f3';
+use constant ETH_TYPE_VLAN                  => '8100';
+use constant ETH_TYPE_IPX                   => '8137';
 use constant ETH_TYPE_SNMP                  => '814c';
+use constant ETH_TYPE_WCP                   => '80ff';
+use constant ETH_TYPE_STP                   => '8181';
+use constant ETH_TYPE_ISMP                  => '81fd';
+use constant ETH_TYPE_ISMP_TBFLOOD          => '81ff';
 use constant ETH_TYPE_IPv6                  => '86dd';
+use constant ETH_TYPE_WLCCP                 => '872d';
+use constant ETH_TYPE_MAC_CONTROL           => '8808';
+use constant ETH_TYPE_SLOW_PROTOCOLS        => '8809';
 use constant ETH_TYPE_PPP                   => '880b';
+use constant ETH_TYPE_COBRANET              => '8819';
+use constant ETH_TYPE_MPLS                  => '8847';
+use constant ETH_TYPE_MPLS_MULTI            => '8848';
+use constant ETH_TYPE_FOUNDRY               => '885a';
+use constant ETH_TYPE_PPPOED                => '8863';
+use constant ETH_TYPE_PPPOES                => '8864';
+use constant ETH_TYPE_INTEL_ANS             => '886d';
+use constant ETH_TYPE_MS_NLB_HEARTBEAT      => '886f';
+use constant ETH_TYPE_CDMA2000_A10_UBS      => '8881';
+use constant ETH_TYPE_EAPOL                 => '888e';
+use constant ETH_TYPE_PROFINET              => '8892';
+use constant ETH_TYPE_HYPERSCSI             => '889a';
+use constant ETH_TYPE_CSM_ENCAPS            => '889b';
+use constant ETH_TYPE_TELKONET              => '88a1';
+use constant ETH_TYPE_AOE                   => '88a2';
+use constant ETH_TYPE_EPL_V2                => '88ab';
+use constant ETH_TYPE_BRDWALK               => '88ae';
+use constant ETH_TYPE_IEEE802_OUI_EXTENDED  => '88b7';
+use constant ETH_TYPE_IEC61850_GOOSE        => '88b8';
+use constant ETH_TYPE_IEC61850_GSE          => '88b9';
+use constant ETH_TYPE_IEC61850_SV           => '88ba';
+use constant ETH_TYPE_TIPC                  => '88ca';
+use constant ETH_TYPE_RSN_PREAUTH           => '88c7';
+use constant ETH_TYPE_LLDP                  => '88cc';
+use constant ETH_TYPE_3GPP2                 => '88d2';
+use constant ETH_TYPE_MRP                   => '88e3';
+use constant ETH_TYPE_LOOP                  => '9000';
+use constant ETH_TYPE_RTMAC                 => '9021';
+use constant ETH_TYPE_RTCFG                 => '9022';
+use constant ETH_TYPE_LLT                   => 'cafe';
+use constant ETH_TYPE_FCFT                  => 'fcfc';
 
 
 
-
+#############################################################################
 sub decode {
+#############################################################################
 
   my $sFlowDatagramPacked = shift;
   my %sFlowDatagram = ();
@@ -648,10 +713,13 @@ sub decode {
 }
 
 
-#################### END sub decode() #######################
+####  END sub decode() ######################################################
 
 
+
+#############################################################################
 sub _bin2ip {
+#############################################################################
 
   # _bin2ip is a copy of "to_dotquad" from NetPacket::IP.pm
   # Copyright (c) 2001 Tim Potter.
@@ -669,7 +737,9 @@ sub _bin2ip {
 }
 
 
+#############################################################################
 sub _decodeIpAddress {
+#############################################################################
 
   my $offsetref = shift;
   my $sFlowDatagramPackedRef = shift;
@@ -715,7 +785,7 @@ sub _decodeIpAddress {
 
       (undef, 
        $sFlowSample->{$keyName}) = 
-        unpack("a$offset B32", $sFlowDatagramPacked);
+        unpack("a$offset N", $sFlowDatagramPacked);
 
       $sFlowSample->{$keyName} = &_bin2ip($sFlowSample->{$keyName});
       $offset += 4;
@@ -788,7 +858,9 @@ sub _decodeIpAddress {
 }
 
 
+#############################################################################
 sub _decodeFlowRecord {
+#############################################################################
 
   my $offsetref = shift;
   my $sFlowDatagramPackedRef = shift;
@@ -971,7 +1043,9 @@ sub _decodeFlowRecord {
 }
 
 
+#############################################################################
 sub _decodeCounterRecord {
+#############################################################################
 
   my $offsetref = shift;
   my $sFlowDatagramPackedRef = shift;
@@ -1045,7 +1119,9 @@ sub _decodeCounterRecord {
 }
 
 
+#############################################################################
 sub _decodeHeaderData {
+#############################################################################
 
   my $offsetref = shift;
   my $sFlowDatagramPackedRef = shift;
@@ -1097,9 +1173,10 @@ sub _decodeHeaderData {
   # copy of the decode function of NetPacket::Ethernet
   # Copyright (c) 2001 Tim Potter.
 
-  my($sm_lo, $sm_hi, $dm_lo, $dm_hi, $type, $ipdata);
+  my($sm_lo, $sm_hi, $dm_lo, $dm_hi, $ipdata);
 
-  ($dm_hi, $dm_lo, $sm_hi, $sm_lo, $type, $ipdata) = unpack('NnNnH4a*', $sFlowSample->{HeaderBin});
+  ($dm_hi, $dm_lo, $sm_hi, $sm_lo, $sFlowSample->{HeaderType}, $ipdata) = 
+    unpack('NnNnH4a*', $sFlowSample->{HeaderBin});
 
   # Convert MAC addresses to hex string to avoid representation problems
 
@@ -1109,27 +1186,23 @@ sub _decodeHeaderData {
 
   # analyze ether type
 
-  if ($type eq '8100') {
+  if ($sFlowSample->{HeaderType} eq ETH_TYPE_VLAN) {
 
-    (undef, $type, $ipdata) = unpack('nH4a*', $ipdata);
+    (undef, $sFlowSample->{HeaderType}, $ipdata) = unpack('nH4a*', $ipdata);
     # add 4 bytes to ethernet header length because of vlan tag
-    # this is done later on, if $add_to_ether is set
+    # this is done later on, if $vlanTag  is set to 1
     $vlanTag = 1;
 
   }
 
-  if ($type eq '0800') {
-
-    $sFlowSample->{HeaderVer} = 4;
+  if ($sFlowSample->{HeaderType} eq ETH_TYPE_IP) {
 
     (undef, $sFlowSample->{HeaderDatalen}) = unpack('nn', $ipdata);
     # add ethenet header length
     $sFlowSample->{HeaderDatalen} += 14;
   }
 
-  elsif ($type eq '86dd') {
-
-    $sFlowSample->{HeaderVer} = 6;
+  elsif ($sFlowSample->{HeaderType} eq ETH_TYPE_IPv6) {
 
     (undef, $sFlowSample->{HeaderDatalen}) = unpack('Nn', $ipdata);
     # add v6 header (not included in v6)
@@ -1138,15 +1211,13 @@ sub _decodeHeaderData {
     $sFlowSample->{HeaderDatalen} += 14;
   }
 
-  elsif ($type eq '0806') {
+  elsif ($sFlowSample->{HeaderType} eq ETH_TYPE_ARP) {
     # ARP 
-    $sFlowSample->{HeaderVer} = 1;
     $sFlowSample->{HeaderDatalen} = 64;
   }
 
   else {
     # unknown
-    $sFlowSample->{HeaderVer} = 0;
     $sFlowSample->{HeaderDatalen} = 64;
   }
 
@@ -1165,7 +1236,9 @@ sub _decodeHeaderData {
 }
 
 
+#############################################################################
 sub _decodeEthernetFrameData {
+#############################################################################
 
   my $offsetref = shift;
   my $sFlowDatagramPackedRef = shift;
@@ -1197,7 +1270,9 @@ sub _decodeEthernetFrameData {
 }
 
 
+#############################################################################
 sub _decodeIPv4Data {
+#############################################################################
   
   my $offsetref = shift;
   my $sFlowDatagramPackedRef = shift;
@@ -1227,7 +1302,9 @@ sub _decodeIPv4Data {
 }
 
 
+#############################################################################
 sub _decodeIPv6Data {
+#############################################################################
   
   my $offsetref = shift;
   my $sFlowDatagramPackedRef = shift;
@@ -1260,7 +1337,9 @@ sub _decodeIPv6Data {
 }
 
 
+#############################################################################
 sub _decodeSwitchData {
+#############################################################################
 
   my $offsetref = shift;
   my $sFlowDatagramPackedRef = shift;
@@ -1283,7 +1362,9 @@ sub _decodeSwitchData {
 }
 
 
+#############################################################################
 sub _decodeRouterData {
+#############################################################################
 
   my $offsetref = shift;
   my $sFlowDatagramPackedRef = shift;
@@ -1332,7 +1413,9 @@ sub _decodeRouterData {
 }
 
 
+#############################################################################
 sub _decodeGatewayData {
+#############################################################################
 
   my $offsetref = shift;
   my $sFlowDatagramPackedRef = shift;
@@ -1363,7 +1446,7 @@ sub _decodeGatewayData {
         $sFlowSample, 
         $sFlowSamples,
         $sFlowSample->{GatewayIpVersionNextHopRouter}, 
-        'GatewayIpVersionNextHopRouter', 
+        'GatewayIpAddressNextHopRouter', 
         undef
       );
 
@@ -1421,7 +1504,7 @@ sub _decodeGatewayData {
 
   }
   # communities added in v.4.
-  if ($sFlowDatagram->{sFlowVersion} == SFLOWv4) {
+  if ($sFlowDatagram->{sFlowVersion} >= SFLOWv4) {
 
     (undef, 
      $sFlowSample->{GatewayLengthCommunitiesList}) = 
@@ -1454,7 +1537,9 @@ sub _decodeGatewayData {
 }
 
 
+#############################################################################
 sub _decodeUserData {
+#############################################################################
 
   my $offsetref = shift;
   my $sFlowDatagramPackedRef = shift;
@@ -1475,7 +1560,6 @@ sub _decodeUserData {
     $offset += 4;
   }
 
-  # xxx - string length "A" ????
   (undef, 
    $sFlowSample->{UserLengthSrcString}) = 
     unpack("a$offset N", $sFlowDatagramPacked);
@@ -1513,7 +1597,9 @@ sub _decodeUserData {
 }
 
 
+#############################################################################
 sub _decodeUrlData {
+#############################################################################
 
   my $offsetref = shift;
   my $sFlowDatagramPackedRef = shift;
@@ -1525,7 +1611,6 @@ sub _decodeUrlData {
   
   $sFlowSample->{URLDATA} = 'URLDATA';
 
-  # xxx - string length "A" ????
   (undef, 
    $sFlowSample->{UrlDirection}, 
    $sFlowSample->{UrlLength}) = 
@@ -1558,7 +1643,9 @@ sub _decodeUrlData {
 }
 
 
+#############################################################################
 sub _decodeMplsData {
+#############################################################################
 
   my $offsetref = shift;
   my $sFlowDatagramPackedRef = shift;
@@ -1629,7 +1716,9 @@ sub _decodeMplsData {
 }
 
 
+#############################################################################
 sub _decodeNatData {
+#############################################################################
   
   my $offsetref = shift;
   my $sFlowDatagramPackedRef = shift;
@@ -1693,7 +1782,9 @@ sub _decodeNatData {
 }
 
 
+#############################################################################
 sub _decodeMplsTunnel {
+#############################################################################
 
   my $offsetref = shift;
   my $sFlowDatagramPackedRef = shift;
@@ -1727,7 +1818,9 @@ sub _decodeMplsTunnel {
 }
 
 
+#############################################################################
 sub _decodeMplsVc {
+#############################################################################
 
   my $offsetref = shift;
   my $sFlowDatagramPackedRef = shift;
@@ -1761,7 +1854,9 @@ sub _decodeMplsVc {
 }
 
 
+#############################################################################
 sub _decodeMplsFec {
+#############################################################################
 
   my $offsetref = shift;
   my $sFlowDatagramPackedRef = shift;
@@ -1791,7 +1886,9 @@ sub _decodeMplsFec {
 }
 
 
+#############################################################################
 sub _decodeMplsLpvFec {
+#############################################################################
 
   my $offsetref = shift;
   my $sFlowDatagramPackedRef = shift;
@@ -1812,7 +1909,9 @@ sub _decodeMplsLpvFec {
 }
 
 
+#############################################################################
 sub _decodeVlanTunnel {
+#############################################################################
 
   my $offsetref = shift;
   my $sFlowDatagramPackedRef = shift;
@@ -1843,7 +1942,9 @@ sub _decodeVlanTunnel {
 }
 
 
+#############################################################################
 sub _decodeCounterGeneric {
+#############################################################################
 
   my $offsetref = shift;
   my $sFlowDatagramPackedRef = shift;
@@ -1905,7 +2006,9 @@ sub _decodeCounterGeneric {
 }
 
 
+#############################################################################
 sub _decodeCounterEthernet {
+#############################################################################
   
   my $offsetref = shift;
   my $sFlowDatagramPackedRef = shift;
@@ -1937,7 +2040,9 @@ sub _decodeCounterEthernet {
 } 
 
 
+#############################################################################
 sub _decodeCounterTokenring {
+#############################################################################
 
   my $offsetref = shift;
   my $sFlowDatagramPackedRef = shift;
@@ -1974,7 +2079,9 @@ sub _decodeCounterTokenring {
 }
 
 
+#############################################################################
 sub _decodeCounterVg {
+#############################################################################
 
   my $offsetref = shift;
   my $sFlowDatagramPackedRef = shift;
@@ -2050,7 +2157,9 @@ sub _decodeCounterVg {
 }
 
 
+#############################################################################
 sub _decodeCounterVlan {
+#############################################################################
 
   my $offsetref = shift;
   my $sFlowDatagramPackedRef = shift;
@@ -2083,7 +2192,9 @@ sub _decodeCounterVlan {
 }
 
 
+#############################################################################
 sub _decodeCounterProcessor {
+#############################################################################
 
   my $offsetref = shift;
   my $sFlowDatagramPackedRef = shift;
@@ -2121,13 +2232,16 @@ sub _decodeCounterProcessor {
   $$offsetref = $offset;
 } 
 
+
 1;
+
 
 __END__
 
+
 =head1 NAME
 
-Net::sFlow - decode sFlow datagrams.
+Net::sFlow - decode sFlow datagrams
 
 
 
@@ -2145,10 +2259,12 @@ Net::sFlow - decode sFlow datagrams.
   }
   die "Socket recv: $!";
 
+
   sub processPacket {
 
     my $sFlowPacket = shift;
 
+    # now we actually call the Net::sFlow::decode() function
     my ($sFlowDatagramRef, $sFlowSamplesRef, $errorsRef) = Net::sFlow::decode($sFlowPacket);
 
     # print errors
@@ -2179,12 +2295,12 @@ http://www.ietf.org/rfc/rfc3176.txt) and sFlow version 5 (Memo -
 http://sflow.org/sflow_version_5.txt).
 
 The module's functionality is provided by a single (exportable)
-function, L<decode|/decode>().
+function, L<decode()|/decode()>.
 
 
 =head1 FUNCTIONS
 
-=head2 decode( UDP_PAYLOAD )
+=head2 decode()
  
 ($datagram, $samples, $error) = Net::sFlow::decode($udp_data);
 
@@ -2218,7 +2334,8 @@ In the case of sFlow v5, there is an additional key:
 
 
 Reference to a list of HASH references, each one representing one
-sample. Depending on the type, the hash contains the following additional keys:
+sample. Depending on the sFlow version and type of hardware where the data comes from 
+(router, switch, etc.), the hash contains the following additional keys:
 
 
 In case of sFlow <= 4:
@@ -2228,7 +2345,7 @@ In case of sFlow <= 4:
   sourceIdType
   sourceIdIndex
 
-If it's a sFlow <= 4 flowsample you will get the following additional keys:
+If it's a sFlow <= 4 I<flowsample> you will get the following additional keys:
 
   samplingRate
   samplePool
@@ -2238,7 +2355,7 @@ If it's a sFlow <= 4 flowsample you will get the following additional keys:
   packetDataType
   extendedDataInSample
 
-If it's a sFlow <= 4 countersample you will get these additional keys:
+If it's a sFlow <= 4 I<countersample> you will get these additional keys:
 
   counterSamplingInterval
   countersVersion
@@ -2249,7 +2366,7 @@ In case of sFlow >= 5 you will first get enterprise, format and length informati
   sampleTypeFormat
   sampleLength
 
-In case of a flowsample (enterprise == 0 and format == 1):
+In case of a I<flowsample> (enterprise == 0 and format == 1):
 
   sampleSequenceNumber
   sourceIdType
@@ -2261,7 +2378,7 @@ In case of a flowsample (enterprise == 0 and format == 1):
   outputInterface
   flowRecordsCount
 
-If it's an expanded flowsample (enterprise == 0 and format == 3)
+If it's an I<expanded flowsample> (enterprise == 0 and format == 3)
 you will get these additional keys instead of inputInterface and outputInterface:
 
   inputInterfaceFormat
@@ -2269,8 +2386,8 @@ you will get these additional keys instead of inputInterface and outputInterface
   outputInterfaceFormat
   outputInterfaceValue
 
-In case of a countersample (enterprise == 0 and format == 2) or
-an expanded countersample (enterprise == 0 and format == 4):
+In case of a I<countersample> (enterprise == 0 and format == 2) or
+an I<expanded countersample> (enterprise == 0 and format == 4):
 
   sampleSequenceNumber
   sourceIdType
@@ -2278,9 +2395,8 @@ an expanded countersample (enterprise == 0 and format == 4):
   counterRecordsCount
   counterDataLength
 
-Depending on what kind of samples the hardware is taking
-you will get the following additional keys:
 
+Depending on the hardware you can get the following additional keys:
 
 Header data (sFlow format):
 
@@ -2296,7 +2412,7 @@ Additional Header data decoded from the raw packet header:
 
   HeaderEtherSrcMac
   HeaderEtherDestMac
-  HeaderVer (IPv4 == 4, IPv6 == 6, ARP == 1, OTHER == 0)
+  HeaderType (ether type)
   HeaderDatalen (of the whole packet including ethernet header)
 
 
@@ -2557,7 +2673,7 @@ Reference to a list of error messages.
 
 =head1 CAVEATS
 
-The L<decode|/decode> function will blindly attempt to decode the data
+The L<decode()|/decode()> function will blindly attempt to decode the data
 you provide. There are some tests for the appropriate values at various
 places (where it is feasible to test - like enterprises,
 formats, versionnumbers, etc.), but in general the GIGO principle still
@@ -2597,7 +2713,7 @@ Please send comments or bug reports to <sflow@ams-ix.net>
 
 =head1 COPYRIGHT
 
-Copyright (c) 2006 AMS-IX B.V.
+Copyright (c) 2007 AMS-IX B.V.
 
 This package is free software and is provided "as is" without express 
 or implied warranty.  It may be used, redistributed and/or modified 

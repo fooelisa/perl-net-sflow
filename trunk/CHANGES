@@ -33,10 +33,15 @@ v. 0.05
   + check for vlan tag and add 4 bytes to length if present
   + ARP header length returned as 64 byte
 
-v. 0.05-1
+v. 0.06
   + add padding to datalength if smaller then 64Byte
   + assume all packets type 'other' as 64 bytes
+  + ip v4 decoding in samples fixed
+  + decode gateway bugfix
+  + ether type constants added
+  + HeaderVer renamed to HeaderType
+  + HeaderType returns the corresponding ether type code
 
 
 Elisa Jasinska <elisa.jasinska@ams-ix.net>
-2006/11/26
+2007/03/18

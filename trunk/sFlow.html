@@ -1,8 +1,8 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
-<title>Net::sFlow - decode sFlow datagrams.</title>
-<link rev="made" href="mailto:root@b28.apple.com" />
+<title>Net::sFlow - decode sFlow datagrams</title>
+<link rev="made" href="mailto:root@b07.apple.com" />
 </head>
 
 <body style="background-color: white">
@@ -18,7 +18,7 @@
 	<li><a href="#functions">FUNCTIONS</a></li>
 	<ul>
 
-		<li><a href="#decode__udp_payload__">decode( UDP_PAYLOAD )</a></li>
+		<li><a href="#decode__"><code>decode()</code></a></li>
 		<ul>
 
 			<li><a href="#return_values">Return Values</a></li>
@@ -38,7 +38,7 @@
 <p>
 </p>
 <h1><a name="name">NAME</a></h1>
-<p>Net::sFlow - decode sFlow datagrams.</p>
+<p>Net::sFlow - decode sFlow datagrams</p>
 <p>
 </p>
 <hr />
@@ -60,6 +60,7 @@
 <pre>
     my $sFlowPacket = shift;</pre>
 <pre>
+    # now we actually call the Net::sFlow::decode() function
     my ($sFlowDatagramRef, $sFlowSamplesRef, $errorsRef) = Net::sFlow::decode($sFlowPacket);</pre>
 <pre>
     # print errors
@@ -88,14 +89,14 @@ datagrams. It supports sFlow version 2/4 (RFC 3176 -
 <a href="http://www.ietf.org/rfc/rfc3176.txt)">http://www.ietf.org/rfc/rfc3176.txt)</a> and sFlow version 5 (Memo -
 <a href="http://sflow.org/sflow_version_5.txt).">http://sflow.org/sflow_version_5.txt).</a></p>
 <p>The module's functionality is provided by a single (exportable)
-function, <a href="#decode">decode</a>().</p>
+function, <a href="#decode__">decode()</a>.</p>
 <p>
 </p>
 <hr />
 <h1><a name="functions">FUNCTIONS</a></h1>
 <p>
 </p>
-<h2><a name="decode__udp_payload__">decode( UDP_PAYLOAD )</a></h2>
+<h2><a name="decode__"><code>decode()</code></a></h2>
 <pre>
 
 ($datagram, $samples, $error) = Net::sFlow::decode($udp_data);</pre>
@@ -133,7 +134,8 @@ the following keys:
 </dt>
 <dd>
 Reference to a list of HASH references, each one representing one
-sample. Depending on the type, the hash contains the following additional keys:
+sample. Depending on the sFlow version and type of hardware where the data comes from 
+(router, switch, etc.), the hash contains the following additional keys:
 </dd>
 <dd>
 <p>In case of sFlow &lt;= 4:</p>
@@ -146,7 +148,7 @@ sample. Depending on the type, the hash contains the following additional keys:
   sourceIdIndex</pre>
 </dd>
 <dd>
-<p>If it's a sFlow &lt;= 4 flowsample you will get the following additional keys:</p>
+<p>If it's a sFlow &lt;= 4 <em>flowsample</em> you will get the following additional keys:</p>
 </dd>
 <dd>
 <pre>
@@ -159,7 +161,7 @@ sample. Depending on the type, the hash contains the following additional keys:
   extendedDataInSample</pre>
 </dd>
 <dd>
-<p>If it's a sFlow &lt;= 4 countersample you will get these additional keys:</p>
+<p>If it's a sFlow &lt;= 4 <em>countersample</em> you will get these additional keys:</p>
 </dd>
 <dd>
 <pre>
@@ -176,7 +178,7 @@ sample. Depending on the type, the hash contains the following additional keys:
   sampleLength</pre>
 </dd>
 <dd>
-<p>In case of a flowsample (enterprise == 0 and format == 1):</p>
+<p>In case of a <em>flowsample</em> (enterprise == 0 and format == 1):</p>
 </dd>
 <dd>
 <pre>
@@ -191,7 +193,7 @@ sample. Depending on the type, the hash contains the following additional keys:
   flowRecordsCount</pre>
 </dd>
 <dd>
-<p>If it's an expanded flowsample (enterprise == 0 and format == 3)
+<p>If it's an <em>expanded flowsample</em> (enterprise == 0 and format == 3)
 you will get these additional keys instead of inputInterface and outputInterface:</p>
 </dd>
 <dd>
@@ -202,8 +204,8 @@ you will get these additional keys instead of inputInterface and outputInterface
   outputInterfaceValue</pre>
 </dd>
 <dd>
-<p>In case of a countersample (enterprise == 0 and format == 2) or
-an expanded countersample (enterprise == 0 and format == 4):</p>
+<p>In case of a <em>countersample</em> (enterprise == 0 and format == 2) or
+an <em>expanded countersample</em> (enterprise == 0 and format == 4):</p>
 </dd>
 <dd>
 <pre>
@@ -214,8 +216,7 @@ an expanded countersample (enterprise == 0 and format == 4):</p>
   counterDataLength</pre>
 </dd>
 <dd>
-<p>Depending on what kind of samples the hardware is taking
-you will get the following additional keys:</p>
+<p>Depending on the hardware you can get the following additional keys:</p>
 </dd>
 <dd>
 <p>Header data (sFlow format):</p>
@@ -237,7 +238,7 @@ you will get the following additional keys:</p>
 <pre>
   HeaderEtherSrcMac
   HeaderEtherDestMac
-  HeaderVer (IPv4 == 4, IPv6 == 6, ARP == 1, OTHER == 0)
+  HeaderType (ether type)
   HeaderDatalen (of the whole packet including ethernet header)</pre>
 </dd>
 <dd>
@@ -567,7 +568,7 @@ Reference to a list of error messages.
 </p>
 <hr />
 <h1><a name="caveats">CAVEATS</a></h1>
-<p>The <a href="#decode">decode</a> function will blindly attempt to decode the data
+<p>The <a href="#decode__">decode()</a> function will blindly attempt to decode the data
 you provide. There are some tests for the appropriate values at various
 places (where it is feasible to test - like enterprises,
 formats, versionnumbers, etc.), but in general the GIGO principle still
@@ -611,7 +612,7 @@ stands: Garbage In / Garbage Out.</p>
 </p>
 <hr />
 <h1><a name="copyright">COPYRIGHT</a></h1>
-<p>Copyright (c) 2006 AMS-IX B.V.
+<p>Copyright (c) 2007 AMS-IX B.V.
 
 </p>
 <p>This package is free software and is provided ``as is'' without express 
