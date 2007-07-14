@@ -42,6 +42,9 @@ v. 0.06
   + HeaderVer renamed to HeaderType
   + HeaderType returns the corresponding ether type code
 
+v. 0.07
+  + bugfix - ifInOctets, ifInDiscards
+
 
 Elisa Jasinska <elisa.jasinska@ams-ix.net>
-2007/03/20
+2007/07/14

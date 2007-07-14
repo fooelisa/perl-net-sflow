@@ -4,7 +4,7 @@
 # My first perl project ;)
 # Elisa Jasinska <elisa.jasinska@ams-ix.net>
 #
-# sFluxDebug.pl - 2007/03/18
+# sFluxDebug.pl - 2007/07/14
 #
 # Please send comments or bug reports to <sflow@ams-ix.net>
 #
@@ -386,11 +386,11 @@ sub preparePrint {
     "ifDirection",
     "ifAdminStatus",
     "ifOperStatus",
-    "idInOctets",
+    "ifInOctets",
     "ifInUcastPkts",
     "ifInMulticastPkts",
     "ifInBroadcastPkts",
-    "idInDiscards",
+    "ifInDiscards",
     "ifInErrors",
     "ifInUnknownProtos",
     "ifOutOctets",
@@ -514,6 +514,7 @@ sub stdout {
     foreach my $sampleOrder (@{$orderHashRef->{sampleOrder}}) {
 
       if (defined($sFlowSampleHashRef->{$sampleOrder})) {
+
         if ($sampleOrder eq "GatewayDestAsPaths") {
           foreach my $GatewayDestAsPath (@{$sFlowSampleHashRef->{$sampleOrder}}) {
             print "  asPathSegmentType => $GatewayDestAsPath->{asPathSegmentType}\n";
@@ -526,6 +527,18 @@ sub stdout {
 
         elsif ($sampleOrder eq "GatewayCommunities") {
           print "  GatewayCommunities => @{$sFlowSampleHashRef->{GatewayCommunities}}\n";
+        }
+
+        elsif ($sampleOrder eq "HeaderEtherSrcMac") {
+          my ($sm_hi, $sm_lo) = unpack("Nn",$sFlowSampleHashRef->{HeaderEtherSrcMac});
+          $sFlowSampleHashRef->{HeaderEtherSrcMac} = sprintf("%08x%04x", $sm_hi, $sm_lo);
+          print "HeaderEtherSrcMac => $sFlowSampleHashRef->{HeaderEtherSrcMac}\n";
+        }
+
+        elsif ($sampleOrder eq "HeaderEtherDestMac") {
+          my ($dm_hi, $dm_lo) = unpack("Nn",$sFlowSampleHashRef->{HeaderEtherDestMac});
+          $sFlowSampleHashRef->{HeaderEtherSrcMac} = sprintf("%08x%04x", $dm_hi, $dm_lo);
+          print "HeaderEtherDestMac => $sFlowSampleHashRef->{HeaderEtherDestMac}\n";
         }
 
         else {

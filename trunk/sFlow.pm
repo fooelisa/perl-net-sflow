@@ -6,7 +6,7 @@
 # With many thanks to Tobias Engel for his help and support!
 #
 #
-# sFlow.pm - 2007/03/20
+# sFlow.pm - 2007/07/14
 #
 # Please send comments or bug reports to <sflow@ams-ix.net>
 #
@@ -40,7 +40,7 @@ require Exporter;
 use Math::BigInt;
 
 
-our $VERSION = '0.06';
+our $VERSION = '0.07';
 our @EXPORT_OK = qw(decode);
 
 
@@ -1175,13 +1175,16 @@ sub _decodeHeaderData {
 
   my($sm_lo, $sm_hi, $dm_lo, $dm_hi, $ipdata);
 
-  ($dm_hi, $dm_lo, $sm_hi, $sm_lo, $sFlowSample->{HeaderType}, $ipdata) = 
-    unpack('NnNnH4a*', $sFlowSample->{HeaderBin});
+
+ # ($dm_hi, $dm_lo, $sm_hi, $sm_lo, $sFlowSample->{HeaderType}, $ipdata) = 
+  ($sFlowSample->{HeaderEtherDestMac}, $sFlowSample->{HeaderEtherSrcMac}, $sFlowSample->{HeaderType}, $ipdata) = 
+#    unpack('NnNnH4a*', $sFlowSample->{HeaderBin});
+    unpack('a6a6H4a*', $sFlowSample->{HeaderBin});
 
   # Convert MAC addresses to hex string to avoid representation problems
 
-  $sFlowSample->{HeaderEtherSrcMac} = sprintf("%08x%04x", $sm_hi, $sm_lo);
-  $sFlowSample->{HeaderEtherDestMac} = sprintf("%08x%04x", $dm_hi, $dm_lo);
+#  $sFlowSample->{HeaderEtherSrcMac} = $sm_hi . $sm_lo; #sprintf("%08x%04x", $sm_hi, $sm_lo);
+#  $sFlowSample->{HeaderEtherDestMac} = $dm_hi. $dm_lo; #sprintf("%08x%04x", $dm_hi, $dm_lo);
 
 
   # analyze ether type
@@ -1975,7 +1978,7 @@ sub _decodeCounterGeneric {
    $sFlowSample->{ifInUcastPkts},
    $sFlowSample->{ifInMulticastPkts},
    $sFlowSample->{ifInBroadcastPkts},
-   $sFlowSample->{idInDiscards},
+   $sFlowSample->{ifInDiscards},
    $sFlowSample->{ifInErrors},
    $sFlowSample->{ifInUnknownProtos},
    $ifOutOctets1,
@@ -1994,9 +1997,9 @@ sub _decodeCounterGeneric {
   $sFlowSample->{ifSpeed} = $sFlowSample->{ifSpeed} << 32;
   $sFlowSample->{ifSpeed} += $ifSpeed2;
  
-  $sFlowSample->{idInOctets} = Math::BigInt->new("$ifInOctets1");
-  $sFlowSample->{idInOctets} = $sFlowSample->{idInOctets} << 32;
-  $sFlowSample->{idInOctets} += $ifInOctets2;
+  $sFlowSample->{ifInOctets} = Math::BigInt->new("$ifInOctets1");
+  $sFlowSample->{ifInOctets} = $sFlowSample->{ifInOctets} << 32;
+  $sFlowSample->{ifInOctets} += $ifInOctets2;
 
   $sFlowSample->{ifOutOctets} = Math::BigInt->new("$ifOutOctets1");
   $sFlowSample->{ifOutOctets} = $sFlowSample->{ifOutOctets} << 32;
@@ -2574,11 +2577,11 @@ Counter generic:
   ifDirection
   ifAdminStatus
   ifOperStatus
-  idInOctets
+  ifInOctets
   ifInUcastPkts
   ifInMulticastPkts
   ifInBroadcastPkts
-  idInDiscards
+  ifInDiscards
   ifInErrors
   ifInUnknownProtos
   ifOutOctets
