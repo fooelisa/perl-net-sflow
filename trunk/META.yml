@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:                Net-sFlow
-version:             0.05
+version:             0.08
 abstract:            decode sFlow datagrams
 license:             perl
 generated_by:        ExtUtils::MakeMaker version 6.31

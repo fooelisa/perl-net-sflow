@@ -1,8 +1,10 @@
+<?xml version="1.0" ?>
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
 <title>Net::sFlow - decode sFlow datagrams</title>
-<link rev="made" href="mailto:root@b07.apple.com" />
+<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+<link rev="made" href="mailto:root@localhost" />
 </head>
 
 <body style="background-color: white">
@@ -108,11 +110,11 @@ and in case of an error a reference to an ARRAY containing the error messages.</
 </p>
 <h3><a name="return_values">Return Values</a></h3>
 <dl>
-<dt><strong><a name="item__24datagram"><em>$datagram</em></a></strong><br />
-</dt>
+<dt><strong><a name="item__datagram"><em>$datagram</em></a></strong>
+
 <dd>
-A HASH reference containing information about the sFlow datagram, with
-the following keys:
+<p>A HASH reference containing information about the sFlow datagram, with
+the following keys:</p>
 </dd>
 <dd>
 <pre>
@@ -130,13 +132,13 @@ the following keys:
 <pre>
   subAgentId</pre>
 </dd>
-<p></p>
-<dt><strong><a name="item__24samples"><em>$samples</em></a></strong><br />
-</dt>
+</li>
+<dt><strong><a name="item__samples"><em>$samples</em></a></strong>
+
 <dd>
-Reference to a list of HASH references, each one representing one
+<p>Reference to a list of HASH references, each one representing one
 sample. Depending on the sFlow version and type of hardware where the data comes from 
-(router, switch, etc.), the hash contains the following additional keys:
+(router, switch, etc.), the hash contains the following additional keys:</p>
 </dd>
 <dd>
 <p>In case of sFlow &lt;= 4:</p>
@@ -558,13 +560,14 @@ an <em>expanded countersample</em> (enterprise == 0 and format == 4):</p>
   memoryTotal
   memoryFree</pre>
 </dd>
-<p></p>
-<dt><strong><a name="item__24error"><em>$error</em></a></strong><br />
-</dt>
+</li>
+<dt><strong><a name="item__error"><em>$error</em></a></strong>
+
 <dd>
-Reference to a list of error messages.
+<p>Reference to a list of error messages.</p>
 </dd>
-<p></p></dl>
+</li>
+</dl>
 <p>
 </p>
 <hr />
@@ -613,7 +616,7 @@ stands: Garbage In / Garbage Out.</p>
 </p>
 <hr />
 <h1><a name="copyright">COPYRIGHT</a></h1>
-<p>Copyright (c) 2007 AMS-IX B.V.
+<p>Copyright (c) 2008 AMS-IX B.V.
 
 </p>
 <p>This package is free software and is provided ``as is'' without express 

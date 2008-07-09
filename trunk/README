@@ -1,7 +1,7 @@
 
-sFlow 0.06
+sFlow 0.08
 
-  This is version 0.06 of sFlow.pm, a module decoding sFlow datagrams 
+  This is version 0.08 of sFlow.pm, a module decoding sFlow datagrams 
   version 2, 3, 4 and 5. 
 
   sFlow is an industry standard technology for monitoring high speed 
@@ -23,7 +23,7 @@ sFlow 0.06
 AUTHOR
 
   Elisa Jasinska <elisa.jasinska@ams-ix.net>
-  2007/03/18
+  2008/07/09
 
 
 CONTACT
@@ -33,7 +33,7 @@ CONTACT
 
 COPYRIGHT
 
-  Copyright (c) 2007 AMS-IX B.V.
+  Copyright (c) 2008 AMS-IX B.V.
 
   This package is free software and is provided "as is" without 
   express or implied warranty.  It may be used, redistributed and/or 

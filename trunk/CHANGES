@@ -47,6 +47,10 @@ v. 0.07
   + bugfix - $sFlowSample->{ifAdminStatus}, $sFlowSample->{ifOperStatus}
   + bugfix - examples/sFluxDebug.pl in printing DestMac address
 
+v. 0.08
+  + localpref didn't exist pre v4
+  + sFlowAsPath{lengthAsList} = 1; for sflow <= v4
+  + some typos fixed
 
 Elisa Jasinska <elisa.jasinska@ams-ix.net>
-2007/09/18
+2008/07/09

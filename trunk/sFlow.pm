@@ -6,7 +6,7 @@
 # With many thanks to Tobias Engel for his help and support!
 #
 #
-# sFlow.pm - 2007/09/13
+# sFlow.pm - 2008/07/09
 #
 # Please send comments or bug reports to <sflow@ams-ix.net>
 #
@@ -20,7 +20,7 @@
 # Dataformat: http://jasinska.de/sFlow/sFlowV5FormatDiagram/
 #
 #
-# Copyright (c) 2007 AMS-IX B.V.
+# Copyright (c) 2008 AMS-IX B.V.
 #
 # This package is free software and is provided "as is" without express 
 # or implied warranty.  It may be used, redistributed and/or modified 
@@ -40,7 +40,7 @@ require Exporter;
 use Math::BigInt;
 
 
-our $VERSION = '0.07';
+our $VERSION = '0.08';
 our @EXPORT_OK = qw(decode);
 
 
@@ -1158,7 +1158,7 @@ sub _decodeHeaderData {
 
   }
 
-  # header size in bit
+  # header size in bits
   $sFlowSample->{HeaderSizeBit} = $sFlowSample->{HeaderSizeByte} * 8;
 
   $sFlowSample->{HeaderBin} = substr ($sFlowDatagramPacked, $offset, $sFlowSample->{HeaderSizeByte});
@@ -1201,7 +1201,7 @@ sub _decodeHeaderData {
   if ($sFlowSample->{HeaderType} eq ETH_TYPE_IP) {
 
     (undef, $sFlowSample->{HeaderDatalen}) = unpack('nn', $ipdata);
-    # add ethenet header length
+    # add ethernet header length
     $sFlowSample->{HeaderDatalen} += 14;
   }
 
@@ -1210,7 +1210,7 @@ sub _decodeHeaderData {
     (undef, $sFlowSample->{HeaderDatalen}) = unpack('Nn', $ipdata);
     # add v6 header (not included in v6)
     $sFlowSample->{HeaderDatalen} += 40;
-    # add ethenet header length
+    # add ethernet header length
     $sFlowSample->{HeaderDatalen} += 14;
   }
 
@@ -1480,13 +1480,21 @@ sub _decodeGatewayData {
 
     # reference to this single path hash in the paths array
     push @sFlowAsPaths, \%sFlowAsPath; 
+   
+    if ($sFlowDatagram->{sFlowVersion} >= SFLOWv4) {
+ 
+      (undef,
+       $sFlowAsPath{asPathSegmentType},
+       $sFlowAsPath{lengthAsList}) = 
+        unpack("a$offset NN", $sFlowDatagramPacked);
     
-    (undef,
-     $sFlowAsPath{asPathSegmentType},
-     $sFlowAsPath{lengthAsList}) = 
-      unpack("a$offset NN", $sFlowDatagramPacked);
-    
-    $offset += 8;
+      $offset += 8;
+
+    } else {
+
+      $sFlowAsPath{lengthAsList} = 1;
+
+    }
 
     # array containing the as numbers of a path
     my @sFlowAsNumber = ();
@@ -1506,7 +1514,8 @@ sub _decodeGatewayData {
     }
 
   }
-  # communities added in v.4.
+
+  # communities and localpref added in v.4.
   if ($sFlowDatagram->{sFlowVersion} >= SFLOWv4) {
 
     (undef, 
@@ -1527,13 +1536,14 @@ sub _decodeGatewayData {
       push @sFlowCommunities, $community;
       $offset += 4;
     }
+
+    (undef, 
+     $sFlowSample->{localPref}) = 
+      unpack("a$offset N", $sFlowDatagramPacked);
+
+    $offset += 4;
+
   }
-
-  (undef, 
-   $sFlowSample->{localPref}) = 
-    unpack("a$offset N", $sFlowDatagramPacked);
-
-  $offset += 4;
 
   $$offsetref = $offset;
   return (1, undef);
@@ -2723,7 +2733,7 @@ Please send comments or bug reports to <sflow@ams-ix.net>
 
 =head1 COPYRIGHT
 
-Copyright (c) 2007 AMS-IX B.V.
+Copyright (c) 2008 AMS-IX B.V.
 
 This package is free software and is provided "as is" without express 
 or implied warranty.  It may be used, redistributed and/or modified 
