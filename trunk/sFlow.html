@@ -100,23 +100,19 @@ function, <a href="#decode__">decode()</a>.</p>
 <p>
 </p>
 <h2><a name="decode__"><code>decode()</code></a></h2>
-<pre>
-
-($datagram, $samples, $error) = Net::sFlow::decode($udp_data);</pre>
-<p>Returns a HASH reference containing the datagram data, 
+<p>($datagram, $samples, $error) = Net::sFlow::decode($udp_data);</p>
+<p>Returns a HASH reference containing the datagram data,
 an ARRAY reference with the sample data (each array element contains a HASH reference for one sample)
 and in case of an error a reference to an ARRAY containing the error messages.</p>
 <p>
 </p>
 <h3><a name="return_values">Return Values</a></h3>
 <dl>
-<dt><strong><a name="item__datagram"><em>$datagram</em></a></strong>
+<dt><strong><a name="item__datagram"><em>$datagram</em></a></strong></dt>
 
 <dd>
 <p>A HASH reference containing information about the sFlow datagram, with
 the following keys:</p>
-</dd>
-<dd>
 <pre>
   sFlowVersion
   AgentIpVersion
@@ -124,36 +120,23 @@ the following keys:</p>
   datagramSequenceNumber
   agentUptime
   samplesInPacket</pre>
-</dd>
-<dd>
 <p>In the case of sFlow v5, there is an additional key:</p>
-</dd>
-<dd>
 <pre>
   subAgentId</pre>
 </dd>
-</li>
-<dt><strong><a name="item__samples"><em>$samples</em></a></strong>
+<dt><strong><a name="item__samples"><em>$samples</em></a></strong></dt>
 
 <dd>
 <p>Reference to a list of HASH references, each one representing one
-sample. Depending on the sFlow version and type of hardware where the data comes from 
+sample. Depending on the sFlow version and type of hardware where the data comes from
 (router, switch, etc.), the hash contains the following additional keys:</p>
-</dd>
-<dd>
 <p>In case of sFlow &lt;= 4:</p>
-</dd>
-<dd>
 <pre>
   sampleType
   sampleSequenceNumber
   sourceIdType
   sourceIdIndex</pre>
-</dd>
-<dd>
 <p>If it's a sFlow &lt;= 4 <em>flowsample</em> you will get the following additional keys:</p>
-</dd>
-<dd>
 <pre>
   samplingRate
   samplePool
@@ -162,28 +145,16 @@ sample. Depending on the sFlow version and type of hardware where the data comes
   outputInterface
   packetDataType
   extendedDataInSample</pre>
-</dd>
-<dd>
 <p>If it's a sFlow &lt;= 4 <em>countersample</em> you will get these additional keys:</p>
-</dd>
-<dd>
 <pre>
   counterSamplingInterval
   countersVersion</pre>
-</dd>
-<dd>
 <p>In case of sFlow &gt;= 5 you will first get enterprise, format and length information:</p>
-</dd>
-<dd>
 <pre>
   sampleTypeEnterprise
   sampleTypeFormat
   sampleLength</pre>
-</dd>
-<dd>
 <p>In case of a <em>flowsample</em> (enterprise == 0 and format == 1):</p>
-</dd>
-<dd>
 <pre>
   sampleSequenceNumber
   sourceIdType
@@ -194,71 +165,45 @@ sample. Depending on the sFlow version and type of hardware where the data comes
   inputInterface
   outputInterface
   flowRecordsCount</pre>
-</dd>
-<dd>
 <p>If it's an <em>expanded flowsample</em> (enterprise == 0 and format == 3)
 you will get these additional keys instead of inputInterface and outputInterface:</p>
-</dd>
-<dd>
 <pre>
   inputInterfaceFormat
   inputInterfaceValue
   outputInterfaceFormat
   outputInterfaceValue</pre>
-</dd>
-<dd>
 <p>In case of a <em>countersample</em> (enterprise == 0 and format == 2) or
 an <em>expanded countersample</em> (enterprise == 0 and format == 4):</p>
-</dd>
-<dd>
 <pre>
   sampleSequenceNumber
   sourceIdType
   sourceIdIndex
   counterRecordsCount
   counterDataLength</pre>
-</dd>
-<dd>
 <p>Depending on the hardware you can get the following additional keys:</p>
-</dd>
-<dd>
 <p>Header data (sFlow format):</p>
-</dd>
-<dd>
 <pre>
   HEADERDATA
   HeaderProtocol
-  HeaderFrameLength 
+  HeaderFrameLength
   HeaderStrippedLength
   HeaderSizeByte
   HeaderSizeBit
   HeaderBin</pre>
-</dd>
-<dd>
 <p>Additional Header data decoded from the raw packet header:</p>
-</dd>
-<dd>
 <pre>
   HeaderEtherSrcMac
   HeaderEtherDestMac
   HeaderType (ether type)
   HeaderDatalen (of the whole packet including ethernet header)</pre>
-</dd>
-<dd>
 <p>Ethernet frame data:</p>
-</dd>
-<dd>
 <pre>
   ETHERNETFRAMEDATA
   EtherMacPacketlength
   EtherSrcMac
   EtherDestMac
   EtherPackettype</pre>
-</dd>
-<dd>
 <p>IPv4 data:</p>
-</dd>
-<dd>
 <pre>
   IPv4DATA
   IPv4Packetlength
@@ -269,11 +214,7 @@ an <em>expanded countersample</em> (enterprise == 0 and format == 4):</p>
   IPv4destPort
   IPv4tcpFlags
   IPv4tos</pre>
-</dd>
-<dd>
 <p>IPv6 data:</p>
-</dd>
-<dd>
 <pre>
   IPv6DATA
   IPv6Packetlength
@@ -284,33 +225,21 @@ an <em>expanded countersample</em> (enterprise == 0 and format == 4):</p>
   IPv6destPort
   IPv6tcpFlags
   IPv6Priority</pre>
-</dd>
-<dd>
 <p>Switch data:</p>
-</dd>
-<dd>
 <pre>
   SWITCHDATA
   SwitchSrcVlan
   SwitchSrcPriority
   SwitchDestVlan
   SwitchDestPriority</pre>
-</dd>
-<dd>
 <p>Router data:</p>
-</dd>
-<dd>
 <pre>
   ROUTERDATA
   RouterIpVersionNextHopRouter
   RouterIpAddressNextHopRouter
   RouterSrcMask
   RouterDestMask</pre>
-</dd>
-<dd>
 <p>Gateway data:</p>
-</dd>
-<dd>
 <pre>
   GATEWAYDATA
   GatewayIpVersionNextHopRouter (only in case of sFlow v5)
@@ -319,29 +248,19 @@ an <em>expanded countersample</em> (enterprise == 0 and format == 4):</p>
   GatewayAsSource
   GatewayAsSourcePeer
   GatewayDestAsPathsCount</pre>
-</dd>
-<dd>
 <pre>
   GatewayDestAsPaths (arrayreference)
     each enty contains a hashreference:
       asPathSegmentType
       lengthAsList
       AsPath (arrayreference, asNumbers as entries)</pre>
-</dd>
-<dd>
 <pre>
   GatewayLengthCommunitiesList (added in sFlow v4)
   GatewayCommunities (arrayreference, added in sFlow v4)
     each enty contains a community (added in sFlow v4)</pre>
-</dd>
-<dd>
 <pre>
   localPref</pre>
-</dd>
-<dd>
 <p>User data:</p>
-</dd>
-<dd>
 <pre>
   USERDATA
   UserSrcCharset (only in case of sFlow v5)
@@ -350,11 +269,7 @@ an <em>expanded countersample</em> (enterprise == 0 and format == 4):</p>
   UserDestCharset (only in case of sFlow v5)
   UserLengthDestString
   UserDestString</pre>
-</dd>
-<dd>
 <p>Url data (added in sFlow v3):</p>
-</dd>
-<dd>
 <pre>
   URLDATA
   UrlDirection
@@ -362,14 +277,8 @@ an <em>expanded countersample</em> (enterprise == 0 and format == 4):</p>
   Url
   UrlHostLength (only in case of sFlow v5)
   UrlHost (only in case of sFlow v5)</pre>
-</dd>
-<dd>
 <p>The following keys can be only available in sFlow v5:</p>
-</dd>
-<dd>
 <p>Mpls data:</p>
-</dd>
-<dd>
 <pre>
   MPLSDATA
   MplsIpVersionNextHopRouter
@@ -378,74 +287,44 @@ an <em>expanded countersample</em> (enterprise == 0 and format == 4):</p>
   MplsInLabelStack (arrayreference containing MplsInLabels)
   MplsOutLabelStackCount
   MplsOutLabelStack (arrayreference containing MplsOutLabels)</pre>
-</dd>
-<dd>
 <p>Nat data:</p>
-</dd>
-<dd>
 <pre>
   NATDATA
   NatIpVersionSrcAddress
   NatSrcAddress
   NatIpVersionDestAddress
   NatDestAddress</pre>
-</dd>
-<dd>
 <p>Mpls tunnel:</p>
-</dd>
-<dd>
 <pre>
   MPLSTUNNEL
   MplsTunnelLength
   MplsTunnelName
   MplsTunnelId
   MplsTunnelCosValue</pre>
-</dd>
-<dd>
 <p>Mpls vc:</p>
-</dd>
-<dd>
 <pre>
   MPLSVC
   MplsVcInstanceNameLength
   MplsVcInstanceName
   MplsVcId
   MplsVcLabelCosValue</pre>
-</dd>
-<dd>
 <p>Mpls fec:</p>
-</dd>
-<dd>
 <pre>
   MPLSFEC
   MplsFtnDescrLength
   MplsFtnDescr
   MplsFtnMask</pre>
-</dd>
-<dd>
 <p>Mpls lpv fec:</p>
-</dd>
-<dd>
 <pre>
   MPLSLPVFEC
   MplsFecAddrPrefixLength</pre>
-</dd>
-<dd>
 <p>Vlan tunnel:</p>
-</dd>
-<dd>
 <pre>
   VLANTUNNEL
   VlanTunnelLayerStackCount
   VlanTunnelLayerStack (arrayreference containing VlanTunnelLayer entries)</pre>
-</dd>
-<dd>
 <p>The following keys are also available in sFlow &lt; 5:</p>
-</dd>
-<dd>
 <p>Counter generic:</p>
-</dd>
-<dd>
 <pre>
   COUNTERGENERIC
   ifIndex
@@ -468,11 +347,7 @@ an <em>expanded countersample</em> (enterprise == 0 and format == 4):</p>
   ifOutDiscards
   ifOutErrors
   ifPromiscuousMode</pre>
-</dd>
-<dd>
 <p>Counter ethernet:</p>
-</dd>
-<dd>
 <pre>
   COUNTERETHERNET
   dot3StatsAlignmentErrors
@@ -488,11 +363,7 @@ an <em>expanded countersample</em> (enterprise == 0 and format == 4):</p>
   dot3StatsFrameTooLongs
   dot3StatsInternalMacReceiveErrors
   dot3StatsSymbolErrors</pre>
-</dd>
-<dd>
 <p>Counter tokenring:</p>
-</dd>
-<dd>
 <pre>
   COUNTERTOKENRING
   dot5StatsLineErrors
@@ -513,11 +384,7 @@ an <em>expanded countersample</em> (enterprise == 0 and format == 4):</p>
   dot5StatsRemoves
   dot5StatsSingles
   dot5StatsFreqErrors</pre>
-</dd>
-<dd>
 <p>Counter vg:</p>
-</dd>
-<dd>
 <pre>
   COUNTERVG
   dot12InHighPriorityFrames
@@ -534,11 +401,7 @@ an <em>expanded countersample</em> (enterprise == 0 and format == 4):</p>
   dot12HCInHighPriorityOctets
   dot12HCInNormPriorityOctets
   dot12HCOutHighPriorityOctets</pre>
-</dd>
-<dd>
 <p>Counter vlan:</p>
-</dd>
-<dd>
 <pre>
   COUNTERVLAN
   vlan_id
@@ -547,11 +410,7 @@ an <em>expanded countersample</em> (enterprise == 0 and format == 4):</p>
   multicastPkts
   broadcastPkts
   discards</pre>
-</dd>
-<dd>
 <p>Counter processor (only in sFlow v5):</p>
-</dd>
-<dd>
 <pre>
   COUNTERPROCESSOR
   cpu5s
@@ -560,13 +419,11 @@ an <em>expanded countersample</em> (enterprise == 0 and format == 4):</p>
   memoryTotal
   memoryFree</pre>
 </dd>
-</li>
-<dt><strong><a name="item__error"><em>$error</em></a></strong>
+<dt><strong><a name="item__error"><em>$error</em></a></strong></dt>
 
 <dd>
 <p>Reference to a list of error messages.</p>
 </dd>
-</li>
 </dl>
 <p>
 </p>
@@ -584,47 +441,31 @@ stands: Garbage In / Garbage Out.</p>
 <p>sFlow v4
 <a href="http://www.ietf.org/rfc/rfc3176.txt">http://www.ietf.org/rfc/rfc3176.txt</a></p>
 <p>Format Diagram v4:
-<a href="http://jasinska.de/sFlow/sFlowV4FormatDiagram/">http://jasinska.de/sFlow/sFlowV4FormatDiagram/</a>
-
-</p>
+<a href="http://jasinska.de/sFlow/sFlowV4FormatDiagram/">http://jasinska.de/sFlow/sFlowV4FormatDiagram/</a></p>
 <p>sFlow v5
-<a href="http://sflow.org/sflow_version_5.txt">http://sflow.org/sflow_version_5.txt</a>
-
-</p>
+<a href="http://sflow.org/sflow_version_5.txt">http://sflow.org/sflow_version_5.txt</a></p>
 <p>Format Diagram v5:
-<a href="http://jasinska.de/sFlow/sFlowV5FormatDiagram/">http://jasinska.de/sFlow/sFlowV5FormatDiagram/</a>
-
-</p>
-<p>Math::BigInt
-
-</p>
+<a href="http://jasinska.de/sFlow/sFlowV5FormatDiagram/">http://jasinska.de/sFlow/sFlowV5FormatDiagram/</a></p>
+<p>Math::BigInt</p>
 <p>
 </p>
 <hr />
 <h1><a name="author">AUTHOR</a></h1>
-<p>Elisa Jasinska &lt;<a href="mailto:elisa.jasinska@ams-ix.net">elisa.jasinska@ams-ix.net</a>&gt;
-
-</p>
+<p>Elisa Jasinska &lt;<a href="mailto:elisa.jasinska@ams-ix.net">elisa.jasinska@ams-ix.net</a>&gt;</p>
 <p>
 </p>
 <hr />
 <h1><a name="contact">CONTACT</a></h1>
-<p>Please send comments or bug reports to &lt;<a href="mailto:sflow@ams-ix.net">sflow@ams-ix.net</a>&gt;
-
-</p>
+<p>Please send comments or bug reports to &lt;<a href="mailto:sflow@ams-ix.net">sflow@ams-ix.net</a>&gt;</p>
 <p>
 </p>
 <hr />
 <h1><a name="copyright">COPYRIGHT</a></h1>
-<p>Copyright (c) 2008 AMS-IX B.V.
-
-</p>
-<p>This package is free software and is provided ``as is'' without express 
-or implied warranty.  It may be used, redistributed and/or modified 
+<p>Copyright (c) 2008 AMS-IX B.V.</p>
+<p>This package is free software and is provided ``as is'' without express
+or implied warranty.  It may be used, redistributed and/or modified
 under the terms of the Perl Artistic License (see
-<a href="http://www.perl.com/perl/misc/Artistic.html)">http://www.perl.com/perl/misc/Artistic.html)</a>
-
-</p>
+<a href="http://www.perl.com/perl/misc/Artistic.html)">http://www.perl.com/perl/misc/Artistic.html)</a></p>
 
 </body>
 

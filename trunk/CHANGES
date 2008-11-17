@@ -51,6 +51,9 @@ v. 0.08
   + localpref didn't exist pre v4
   + sFlowAsPath{lengthAsList} = 1; for sflow <= v4
   + some typos fixed
+  + boundry checks on values taken from datagram used as iterator
+  + boundry checks on values taken from datagram used as offset for unpack()
+    thanks ilja! :D
 
 Elisa Jasinska <elisa.jasinska@ams-ix.net>
-2008/07/09
+2008/11/17

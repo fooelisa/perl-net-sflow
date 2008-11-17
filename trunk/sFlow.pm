@@ -6,7 +6,7 @@
 # With many thanks to Tobias Engel for his help and support!
 #
 #
-# sFlow.pm - 2008/07/09
+# sFlow.pm - 2008/11/17
 #
 # Please send comments or bug reports to <sflow@ams-ix.net>
 #
@@ -34,6 +34,7 @@ package Net::sFlow;
 
 use strict;
 use warnings;
+use bytes;
 
 require Exporter;
 # 64bit integers
@@ -233,106 +234,57 @@ sub decode {
 
     $offset += (3 * 4);
 
-    # parse samples
-    for my $samplesCount (0 .. $sFlowDatagram{samplesInPacket} - 1) {
+    # boundcheck for $sFlowDatagram{samplesInPacket}
+    # $sFlowDatagram{samplesInPacket} * 4
+    # cannot be longer than the number of $sFlowDatagramPacked byte - $offset
 
-      my %sFlowSample = ();
-      push @sFlowSamples, \%sFlowSample;
+    if (length($sFlowDatagramPacked) - $offset >
+      $sFlowDatagram{samplesInPacket} * 4) {
 
-      (undef,
-       $sFlowSample{sampleType}) =
-        unpack("a$offset N", $sFlowDatagramPacked);
+      # parse samples
+      for my $samplesCount (0 .. $sFlowDatagram{samplesInPacket} - 1) {
 
-      $offset += 4;
-
-
-      # FLOWSAMPLE
-      if ($sFlowSample{sampleType} == FLOWSAMPLE_SFLOWv4) {
+        my %sFlowSample = ();
+        push @sFlowSamples, \%sFlowSample;
 
         (undef,
-         $sFlowSample{sampleSequenceNumber}) =
+         $sFlowSample{sampleType}) =
           unpack("a$offset N", $sFlowDatagramPacked);
 
         $offset += 4;
 
-        my $sourceId = undef;
 
-        (undef,
-         $sourceId,
-         $sFlowSample{samplingRate},
-         $sFlowSample{samplePool},
-         $sFlowSample{drops},
-         $sFlowSample{inputInterface},
-         $sFlowSample{outputInterface},
-         $sFlowSample{packetDataType}) =
-          unpack("a$offset N7", $sFlowDatagramPacked);
+        # FLOWSAMPLE
+        if ($sFlowSample{sampleType} == FLOWSAMPLE_SFLOWv4) {
 
-        $offset += 28;
+          (undef,
+           $sFlowSample{sampleSequenceNumber}) =
+            unpack("a$offset N", $sFlowDatagramPacked);
 
-        $sFlowSample{sourceIdType} = $sourceId >> 24;
-        $sFlowSample{sourceIdIndex} = $sourceId & 2 ** 24 - 1;
-
-        # packet data type: header
-        if ($sFlowSample{packetDataType} == HEADERDATA_SFLOWv4) {
-
-          ($subProcessed, $error) =
-            &_decodeHeaderData(
-              \$offset,
-              \$sFlowDatagramPacked,
-              \%sFlowDatagram,
-              \%sFlowSample,
-              \@sFlowSamples,
-            );
-
-          unless ($subProcessed) {
-            push @errors, $error;
-          }
-        }
-
-        # packet data type: IPv4
-        elsif ($sFlowSample{packetDataType} == IPv4DATA_SFLOWv4) {
-          &_decodeIPv4Data(\$offset, \$sFlowDatagramPacked, \%sFlowSample);
-        }
-
-        # packet data type: IPv6
-        elsif ($sFlowSample{packetDataType} == IPv6DATA_SFLOWv4){
-          &_decodeIPv6Data(\$offset, \$sFlowDatagramPacked, \%sFlowSample);
-        }
-
-        else {
-
-          $error = "ERROR: [sFlow.pm] <sFlowV4:PacketData> AgentIP: $sFlowDatagram{AgentIp}, "
-                 . "Datagram: $sFlowDatagram{datagramSequenceNumber} - Unknown packet data type: "
-                 . "$sFlowSample{packetDataType} - rest of the datagram skipped";
-
-          push @errors, $error;
-          pop @sFlowSamples;
-		      return (\%sFlowDatagram, \@sFlowSamples, \@errors);
-        }
-
-        (undef,
-         $sFlowSample{extendedDataInSample}) =
-          unpack("a$offset N", $sFlowDatagramPacked);
-
-        $offset += 4;
-
-        for my $extendedDataCount (0 .. $sFlowSample{extendedDataInSample} - 1){
-
-          my $extendedDataType = undef;
-
-          (undef, $extendedDataType) = unpack("a$offset N", $sFlowDatagramPacked);
           $offset += 4;
 
-          # extended data: switch
-          if ($extendedDataType == SWITCHDATA_SFLOWv4) {
-            &_decodeSwitchData(\$offset, \$sFlowDatagramPacked, \%sFlowSample);
-          }
+          my $sourceId = undef;
 
-          # extended data: router
-          elsif ($extendedDataType == ROUTERDATA_SFLOWv4) {
+          (undef,
+           $sourceId,
+           $sFlowSample{samplingRate},
+           $sFlowSample{samplePool},
+           $sFlowSample{drops},
+           $sFlowSample{inputInterface},
+           $sFlowSample{outputInterface},
+           $sFlowSample{packetDataType}) =
+            unpack("a$offset N7", $sFlowDatagramPacked);
+
+          $offset += 28;
+
+          $sFlowSample{sourceIdType} = $sourceId >> 24;
+          $sFlowSample{sourceIdIndex} = $sourceId & 2 ** 24 - 1;
+
+          # packet data type: header
+          if ($sFlowSample{packetDataType} == HEADERDATA_SFLOWv4) {
 
             ($subProcessed, $error) =
-              &_decodeRouterData(
+              &_decodeHeaderData(
                 \$offset,
                 \$sFlowDatagramPacked,
                 \%sFlowDatagram,
@@ -342,63 +294,222 @@ sub decode {
 
             unless ($subProcessed) {
               push @errors, $error;
-              pop @sFlowSamples;
-              return (\%sFlowDatagram, \@sFlowSamples, \@errors);
             }
-
           }
 
-          # extended data: gateway
-          elsif ($extendedDataType == GATEWAYDATA_SFLOWv4) {
-
-            ($subProcessed, $error) =
-              &_decodeGatewayData(
-                \$offset,
-                \$sFlowDatagramPacked,
-                \%sFlowDatagram,
-                \%sFlowSample,
-                \@sFlowSamples,
-              );
-
-            unless ($subProcessed) {
-              push @errors, $error;
-              pop @sFlowSamples;
-              return (\%sFlowDatagram, \@sFlowSamples, \@errors);
-            }
-  
+          # packet data type: IPv4
+          elsif ($sFlowSample{packetDataType} == IPv4DATA_SFLOWv4) {
+            &_decodeIPv4Data(\$offset, \$sFlowDatagramPacked, \%sFlowSample);
           }
 
-          # extended data: user
-          elsif ($extendedDataType == USERDATA_SFLOWv4) {
-
-            &_decodeUserData(
-              \$offset,
-              \$sFlowDatagramPacked,
-              \%sFlowDatagram,
-              \%sFlowSample,
-            );
-
-          }
-
-          # extended data: url
-          # added in v.3.
-          elsif ($extendedDataType == URLDATA_SFLOWv4) {
-
-            &_decodeUrlData(
-              \$offset,
-              \$sFlowDatagramPacked,
-              \%sFlowDatagram,
-              \%sFlowSample,
-            );
-
+          # packet data type: IPv6
+          elsif ($sFlowSample{packetDataType} == IPv6DATA_SFLOWv4){
+            &_decodeIPv6Data(\$offset, \$sFlowDatagramPacked, \%sFlowSample);
           }
 
           else {
+  
+            $error = "ERROR: [sFlow.pm] <sFlowV4:PacketData> AgentIP: $sFlowDatagram{AgentIp}, "
+                   . "Datagram: $sFlowDatagram{datagramSequenceNumber} - Unknown packet data type: "
+                   . "$sFlowSample{packetDataType} - rest of the datagram skipped";
+  
+            push @errors, $error;
+            pop @sFlowSamples;
+		        return (\%sFlowDatagram, \@sFlowSamples, \@errors);
+          }
 
-            $error = "ERROR: [sFlow.pm] <sFlowV4:ExtendedData> AgentIP: $sFlowDatagram{AgentIp}, "
-                   . "Datagram: $sFlowDatagram{datagramSequenceNumber} - Unknown extended data type: "
-                   . "$extendedDataType - rest of the datagram skipped";
+          (undef,
+           $sFlowSample{extendedDataInSample}) =
+            unpack("a$offset N", $sFlowDatagramPacked);
 
+          $offset += 4;
+
+          # boundcheck for $sFlowSample{extendedDataInSample}
+          # $sFlowSample{extendedDataInSample} * 4
+          # cannot be longer than the number of $sFlowDatagramPacked byte - $offset
+
+          if (length($sFlowDatagramPacked) - $offset >
+            $sFlowSample{extendedDataInSample} * 4) {
+
+            for my $extendedDataCount (0 .. $sFlowSample{extendedDataInSample} - 1){
+
+              my $extendedDataType = undef;
+
+              (undef, $extendedDataType) = unpack("a$offset N", $sFlowDatagramPacked);
+              $offset += 4;
+
+              # extended data: switch
+              if ($extendedDataType == SWITCHDATA_SFLOWv4) {
+                &_decodeSwitchData(\$offset, \$sFlowDatagramPacked, \%sFlowSample);
+              }
+
+              # extended data: router
+              elsif ($extendedDataType == ROUTERDATA_SFLOWv4) {
+  
+                ($subProcessed, $error) =
+                  &_decodeRouterData(
+                    \$offset,
+                    \$sFlowDatagramPacked,
+                    \%sFlowDatagram,
+                    \%sFlowSample,
+                    \@sFlowSamples,
+                  );
+
+                unless ($subProcessed) {
+                  push @errors, $error;
+                  pop @sFlowSamples;
+                  return (\%sFlowDatagram, \@sFlowSamples, \@errors);
+                }
+
+              }
+
+              # extended data: gateway
+              elsif ($extendedDataType == GATEWAYDATA_SFLOWv4) {
+
+                ($subProcessed, $error) =
+                  &_decodeGatewayData(
+                    \$offset,
+                    \$sFlowDatagramPacked,
+                    \%sFlowDatagram,
+                    \%sFlowSample,
+                    \@sFlowSamples,
+                  );
+
+                unless ($subProcessed) {
+                  push @errors, $error;
+                  pop @sFlowSamples;
+                  return (\%sFlowDatagram, \@sFlowSamples, \@errors);
+                }
+  
+             }
+  
+              # extended data: user
+              elsif ($extendedDataType == USERDATA_SFLOWv4) {
+
+                ($subProcessed, $error) =
+                  &_decodeUserData(
+                    \$offset,
+                    \$sFlowDatagramPacked,
+                    \%sFlowDatagram,
+                    \%sFlowSample,
+                  );  
+
+                unless ($subProcessed) {
+                  push @errors, $error;
+                  pop @sFlowSamples;
+                  return (\%sFlowDatagram, \@sFlowSamples, \@errors);
+                }
+
+              }
+
+              # extended data: url
+              # added in v.3.
+              elsif ($extendedDataType == URLDATA_SFLOWv4) {
+
+                ($subProcessed, $error) =
+                  &_decodeUrlData(
+                    \$offset,
+                    \$sFlowDatagramPacked,
+                    \%sFlowDatagram,
+                    \%sFlowSample,
+                  );
+
+                unless ($subProcessed) {
+                  push @errors, $error;
+                  pop @sFlowSamples;
+                  return (\%sFlowDatagram, \@sFlowSamples, \@errors);
+                }
+  
+              }
+
+              else {
+  
+                $error = "ERROR: [sFlow.pm] <sFlowV4:ExtendedData> AgentIP: $sFlowDatagram{AgentIp}, "
+                       . "Datagram: $sFlowDatagram{datagramSequenceNumber} - Unknown extended data type: "
+                       . "$extendedDataType - rest of the datagram skipped";
+    
+                push @errors, $error;
+                pop @sFlowSamples;
+		            return (\%sFlowDatagram, \@sFlowSamples, \@errors);
+              }
+  
+            }
+  
+          } else {
+
+            # error $sFlowSample{extendedDataInSample} too big
+            $error = "ERROR: [sFlow.pm] Datagram: Extended data in sample count too big "
+                   . "- rest of the datagram skipped";
+
+            push @errors, $error;
+            pop @sFlowSamples;
+            return (\%sFlowDatagram, \@sFlowSamples, \@errors);
+
+          }
+
+        }
+
+        # COUNTERSAMPLE
+        elsif ($sFlowSample{sampleType} == COUNTERSAMPLE_SFLOWv4) {
+
+          my $sourceId = undef;
+
+          (undef,
+           $sFlowSample{sampleSequenceNumber},
+           $sourceId,
+           $sFlowSample{counterSamplingInterval},
+           $sFlowSample{countersVersion}) =
+            unpack("a$offset N4", $sFlowDatagramPacked);
+
+          $offset += 16;
+      
+          $sFlowSample{sourceIdType} = $sourceId >> 24;
+          $sFlowSample{sourceIdIndex} = $sourceId & 2 ** 24 - 1;
+
+          # counterstype: generic
+          if ($sFlowSample{countersVersion} == GENERICCOUNTER_SFLOWv4) {
+            &_decodeCounterGeneric(\$offset, \$sFlowDatagramPacked, \%sFlowSample);
+          }
+
+          # counterstype: ethernet
+          elsif ($sFlowSample{countersVersion} == ETHERNETCOUNTER_SFLOWv4) {
+            &_decodeCounterGeneric(\$offset, \$sFlowDatagramPacked, \%sFlowSample);
+            &_decodeCounterEthernet(\$offset, \$sFlowDatagramPacked, \%sFlowSample);
+          }
+
+          # counterstype: tokenring
+          elsif ($sFlowSample{countersVersion} == TOKENRINGCOUNTER_SFLOWv4) {
+            &_decodeCounterGeneric(\$offset, \$sFlowDatagramPacked, \%sFlowSample);
+            &_decodeCounterTokenring(\$offset, \$sFlowDatagramPacked, \%sFlowSample);
+          }
+
+          # counterstype: fddi
+          elsif ($sFlowSample{countersVersion} == FDDICOUNTER_SFLOWv4) {
+            &_decodeCounterGeneric(\$offset, \$sFlowDatagramPacked, \%sFlowSample);
+          }
+
+          # counterstype: vg
+          elsif ($sFlowSample{countersVersion} == VGCOUNTER_SFLOWv4) {
+            &_decodeCounterGeneric(\$offset, \$sFlowDatagramPacked, \%sFlowSample);
+            &_decodeCounterVg(\$offset, \$sFlowDatagramPacked, \%sFlowSample);
+          }
+
+          # counterstype: wan
+          elsif ($sFlowSample{countersVersion} == WANCOUNTER_SFLOWv4) {
+            &_decodeCounterGeneric(\$offset, \$sFlowDatagramPacked, \%sFlowSample);
+          }
+  
+          # counterstype: vlan
+          elsif ($sFlowSample{countersVersion} == VLANCOUNTER_SFLOWv4) {
+            &_decodeCounterVlan(\$offset, \$sFlowDatagramPacked, \%sFlowSample);
+          }
+
+          else {
+  
+            $error = "ERROR: [sFlow.pm] <sFlowV4:CountersType> AgentIP: $sFlowDatagram{AgentIp}, "
+                   . "Datagram: $sFlowDatagram{datagramSequenceNumber} - Unknown counters type: "
+                   . "$sFlowSample{countersVersion} - rest of the datagram skipped";
+  
             push @errors, $error;
             pop @sFlowSamples;
 		        return (\%sFlowDatagram, \@sFlowSamples, \@errors);
@@ -406,68 +517,11 @@ sub decode {
 
         }
 
-      }
-
-      # COUNTERSAMPLE
-      elsif ($sFlowSample{sampleType} == COUNTERSAMPLE_SFLOWv4) {
-
-        my $sourceId = undef;
-
-        (undef,
-         $sFlowSample{sampleSequenceNumber},
-         $sourceId,
-         $sFlowSample{counterSamplingInterval},
-         $sFlowSample{countersVersion}) =
-          unpack("a$offset N4", $sFlowDatagramPacked);
-
-        $offset += 16;
-      
-        $sFlowSample{sourceIdType} = $sourceId >> 24;
-        $sFlowSample{sourceIdIndex} = $sourceId & 2 ** 24 - 1;
-
-        # counterstype: generic
-        if ($sFlowSample{countersVersion} == GENERICCOUNTER_SFLOWv4) {
-          &_decodeCounterGeneric(\$offset, \$sFlowDatagramPacked, \%sFlowSample);
-        }
-
-        # counterstype: ethernet
-        elsif ($sFlowSample{countersVersion} == ETHERNETCOUNTER_SFLOWv4) {
-          &_decodeCounterGeneric(\$offset, \$sFlowDatagramPacked, \%sFlowSample);
-          &_decodeCounterEthernet(\$offset, \$sFlowDatagramPacked, \%sFlowSample);
-        }
-
-        # counterstype: tokenring
-        elsif ($sFlowSample{countersVersion} == TOKENRINGCOUNTER_SFLOWv4) {
-          &_decodeCounterGeneric(\$offset, \$sFlowDatagramPacked, \%sFlowSample);
-          &_decodeCounterTokenring(\$offset, \$sFlowDatagramPacked, \%sFlowSample);
-        }
-
-        # counterstype: fddi
-        elsif ($sFlowSample{countersVersion} == FDDICOUNTER_SFLOWv4) {
-          &_decodeCounterGeneric(\$offset, \$sFlowDatagramPacked, \%sFlowSample);
-        }
-
-        # counterstype: vg
-        elsif ($sFlowSample{countersVersion} == VGCOUNTER_SFLOWv4) {
-          &_decodeCounterGeneric(\$offset, \$sFlowDatagramPacked, \%sFlowSample);
-          &_decodeCounterVg(\$offset, \$sFlowDatagramPacked, \%sFlowSample);
-        }
-
-        # counterstype: wan
-        elsif ($sFlowSample{countersVersion} == WANCOUNTER_SFLOWv4) {
-          &_decodeCounterGeneric(\$offset, \$sFlowDatagramPacked, \%sFlowSample);
-        }
-
-        # counterstype: vlan
-        elsif ($sFlowSample{countersVersion} == VLANCOUNTER_SFLOWv4) {
-          &_decodeCounterVlan(\$offset, \$sFlowDatagramPacked, \%sFlowSample);
-        }
-
         else {
 
-          $error = "ERROR: [sFlow.pm] <sFlowV4:CountersType> AgentIP: $sFlowDatagram{AgentIp}, "
-                 . "Datagram: $sFlowDatagram{datagramSequenceNumber} - Unknown counters type: "
-                 . "$sFlowSample{countersVersion} - rest of the datagram skipped";
+          $error = "ERROR: [sFlow.pm] <sFlowV4:SampleType> AgentIP: $sFlowDatagram{AgentIp}, "
+                 . "Datagram: $sFlowDatagram{datagramSequenceNumber} - Unknown sample type: "
+                 . "$sFlowSample{sampleType} - rest of the datagram skipped";
 
           push @errors, $error;
           pop @sFlowSamples;
@@ -476,21 +530,19 @@ sub decode {
 
       }
 
-      else {
+    } else {
 
-        $error = "ERROR: [sFlow.pm] <sFlowV4:SampleType> AgentIP: $sFlowDatagram{AgentIp}, "
-               . "Datagram: $sFlowDatagram{datagramSequenceNumber} - Unknown sample type: "
-               . "$sFlowSample{sampleType} - rest of the datagram skipped";
+      # error $sFlowDatagram{samplesInPacket} too big
+      $error = "ERROR: [sFlow.pm] Datagram: Samples in packet count too big "
+             . "- rest of the datagram skipped";
 
-        push @errors, $error;
-        pop @sFlowSamples;
-		    return (\%sFlowDatagram, \@sFlowSamples, \@errors);
-      }
+      push @errors, $error;
+      pop @sFlowSamples;
+      return (\%sFlowDatagram, \@sFlowSamples, \@errors);
 
     }
 
   }
-
 
 ####### sFlow V5 #######
 
@@ -511,187 +563,282 @@ sub decode {
 
     $offset += 12;
 
-    # parse samples
-    for my $samplesCount (0 .. $sFlowDatagram{samplesInPacket} - 1) {
+    # boundcheck for $sFlowDatagram{samplesInPacket}
+    # $sFlowDatagram{samplesInPacket} * 4
+    # cannot be longer than the number of $sFlowDatagramPacked byte - $offset
 
-      my %sFlowSample = ();
-      push @sFlowSamples, \%sFlowSample;
+    if (length($sFlowDatagramPacked) - $offset >
+      $sFlowDatagram{samplesInPacket} * 4) {
 
-      my $sampleType = undef;
+      # parse samples
+      for my $samplesCount (0 .. $sFlowDatagram{samplesInPacket} - 1) {
 
-      (undef,
-       $sampleType,
-       $sFlowSample{sampleLength}) =
-        unpack("a$offset NN", $sFlowDatagramPacked);
+        my %sFlowSample = ();
+        push @sFlowSamples, \%sFlowSample;
 
-      $offset += 8;
-
-      $sFlowSample{sampleTypeEnterprise} = $sampleType >> 12;
-      $sFlowSample{sampleTypeFormat} = $sampleType & 2 ** 12 - 1;
-
-      my $sourceId = undef;
-
-      if ($sFlowSample{sampleTypeEnterprise} == 0
-          and $sFlowSample{sampleTypeFormat} == FLOWSAMPLE_SFLOWv5) {
+        my $sampleType = undef;
 
         (undef,
-         $sFlowSample{sampleSequenceNumber},
-         $sourceId,
-         $sFlowSample{samplingRate},
-         $sFlowSample{samplePool},
-         $sFlowSample{drops},
-         $sFlowSample{inputInterface},
-         $sFlowSample{outputInterface},
-         $sFlowSample{flowRecordsCount}) =
-          unpack("a$offset N8", $sFlowDatagramPacked);
+        $sampleType,
+        $sFlowSample{sampleLength}) =
+          unpack("a$offset NN", $sFlowDatagramPacked);
 
-        $offset += 32;
+        $offset += 8;
 
-        $sFlowSample{sourceIdType} = $sourceId >> 24;
-        $sFlowSample{sourceIdIndex} = $sourceId & 2 ** 24 - 1;
+        $sFlowSample{sampleTypeEnterprise} = $sampleType >> 12;
+        $sFlowSample{sampleTypeFormat} = $sampleType & 2 ** 12 - 1;
 
-        for my $flowRecords (0 .. $sFlowSample{flowRecordsCount} - 1) {
+        my $sourceId = undef;
 
-          ($subProcessed, $error) =
-            &_decodeFlowRecord(
-              \$offset,
-              \$sFlowDatagramPacked,
-              \%sFlowDatagram,
-              \%sFlowSample,
-              \@sFlowSamples,
-              \@errors,
-            );
+        if ($sFlowSample{sampleTypeEnterprise} == 0
+            and $sFlowSample{sampleTypeFormat} == FLOWSAMPLE_SFLOWv5) {
 
-          unless ($subProcessed) {
+          (undef,
+           $sFlowSample{sampleSequenceNumber},
+           $sourceId,
+           $sFlowSample{samplingRate},
+           $sFlowSample{samplePool},
+           $sFlowSample{drops},
+           $sFlowSample{inputInterface},
+           $sFlowSample{outputInterface},
+           $sFlowSample{flowRecordsCount}) =
+            unpack("a$offset N8", $sFlowDatagramPacked);
+
+          $offset += 32;
+
+          $sFlowSample{sourceIdType} = $sourceId >> 24;
+          $sFlowSample{sourceIdIndex} = $sourceId & 2 ** 24 - 1;
+
+          # boundcheck for $sFlowSample{flowRecordsCount}
+          # $sFlowSample{flowRecordsCount} * 4
+          # cannot be longer than the number of $sFlowDatagramPacked byte - $offset
+
+          if (length($sFlowDatagramPacked) - $offset >
+            $sFlowSample{flowRecordsCount} * 4) {
+
+            for my $flowRecords (0 .. $sFlowSample{flowRecordsCount} - 1) {
+
+              ($subProcessed, $error) =
+                &_decodeFlowRecord(
+                  \$offset,
+                  \$sFlowDatagramPacked,
+                  \%sFlowDatagram,
+                  \%sFlowSample,
+                  \@sFlowSamples,
+                  \@errors,
+                );
+
+              unless ($subProcessed) {
+                push @errors, $error;
+                pop @sFlowSamples;
+                return (\%sFlowDatagram, \@sFlowSamples, \@errors);
+              }
+
+            }
+
+          } else {
+
+            # error $sFlowSample{flowRecordsCount} too big
+            $error = "ERROR: [sFlow.pm] Datagram: Flow records count too big "
+                   . "- rest of the datagram skipped";
+
             push @errors, $error;
             pop @sFlowSamples;
             return (\%sFlowDatagram, \@sFlowSamples, \@errors);
+
           }
 
         }
 
-      }
-
-      elsif ($sFlowSample{sampleTypeEnterprise} == 0
-             and $sFlowSample{sampleTypeFormat} == COUNTERSAMPLE_SFLOWv5) {
-
-        (undef,
-         $sFlowSample{sampleSequenceNumber},
-         $sourceId,
-         $sFlowSample{counterRecordsCount}) =
-          unpack("a$offset N3", $sFlowDatagramPacked);
-
-        $offset += 12;
-
-        $sFlowSample{sourceIdType} = $sourceId >> 24;
-        $sFlowSample{sourceIdIndex} = $sourceId & 2 ** 24 - 1;
-
-        for my $counterRecords (0 .. $sFlowSample{counterRecordsCount} - 1) {
-
-          ($subProcessed, $error) =
-            &_decodeCounterRecord(
-              \$offset,
-              \$sFlowDatagramPacked,
-              \%sFlowDatagram,
-              \%sFlowSample,
-              \@sFlowSamples,
-            );
-
-          unless ($subProcessed) {
-            push @errors, $error;
-            pop @sFlowSamples;
-            return (\%sFlowDatagram, \@sFlowSamples, \@errors);
-          }
-
-        }
-
-      }
-
-      elsif ($sFlowSample{sampleTypeEnterprise} == 0
-             and $sFlowSample{sampleTypeFormat} == EXPANDEDFLOWSAMPLE_SFLOWv5) {
-      
-        (undef,
-         $sFlowSample{sampleSequenceNumber},
-         $sFlowSample{sourceIdType},
-         $sFlowSample{sourceIdIndex},
-         $sFlowSample{samplingRate},
-         $sFlowSample{samplePool},
-         $sFlowSample{drops},
-         $sFlowSample{inputInterfaceFormat},
-         $sFlowSample{inputInterfaceValue},
-         $sFlowSample{outputInterfaceFormat},
-         $sFlowSample{outputInterfaceValue},
-         $sFlowSample{flowRecordsCount}) =
-          unpack("a$offset N11", $sFlowDatagramPacked);
-
-        $offset += 44;
-
-        for my $flowRecords (0 .. $sFlowSample{flowRecordsCount} - 1) {
-
-          ($subProcessed, $error) =
-            &_decodeFlowRecord(
-              \$offset,
-              \$sFlowDatagramPacked,
-              \%sFlowDatagram,
-              \%sFlowSample,
-              \@sFlowSamples,
-              \@errors,
-            );
-
-          unless ($subProcessed) {
-            push @errors, $error;
-            pop @sFlowSamples;
-            return (\%sFlowDatagram, \@sFlowSamples, \@errors);
-          }
-
-        }
-
-      }
-
-      elsif ($sFlowSample{sampleTypeEnterprise} == 0
-             and $sFlowSample{sampleTypeFormat} == EXPANDEDCOUNTERSAMPLE_SFLOWv5) {
-
-        (undef,
-         $sFlowSample{sampleSequenceNumber},
-         $sFlowSample{sourceIdType},
-         $sFlowSample{sourceIdIndex},
-         $sFlowSample{counterRecordsCount}) =
-          unpack("a$offset N4", $sFlowDatagramPacked);
-
-        $offset += 16;
+        elsif ($sFlowSample{sampleTypeEnterprise} == 0
+               and $sFlowSample{sampleTypeFormat} == COUNTERSAMPLE_SFLOWv5) {
   
-        for my $counterRecords (0 .. $sFlowSample{counterRecordsCount} - 1) {
+          (undef,
+           $sFlowSample{sampleSequenceNumber},
+           $sourceId,
+           $sFlowSample{counterRecordsCount}) =
+            unpack("a$offset N3", $sFlowDatagramPacked);
 
-          ($subProcessed, $error) =
-            &_decodeCounterRecord(
-              \$offset,
-              \$sFlowDatagramPacked,
-              \%sFlowDatagram,
-              \%sFlowSample,
-              \@sFlowSamples,
-            );
+          $offset += 12;
 
-          unless ($subProcessed) {
+          $sFlowSample{sourceIdType} = $sourceId >> 24;
+          $sFlowSample{sourceIdIndex} = $sourceId & 2 ** 24 - 1;
+
+          # boundcheck for $sFlowSample{counterRecordsCount}
+          # $sFlowSample{counterRecordsCount} * 4
+          # cannot be longer than the number of $sFlowDatagramPacked byte - $offset
+
+          if (length($sFlowDatagramPacked) - $offset >
+            $sFlowSample{counterRecordsCount} * 4) {
+
+            for my $counterRecords (0 .. $sFlowSample{counterRecordsCount} - 1) {
+
+              ($subProcessed, $error) =
+                &_decodeCounterRecord(
+                  \$offset,
+                  \$sFlowDatagramPacked,
+                  \%sFlowDatagram,
+                  \%sFlowSample,
+                  \@sFlowSamples,
+                );
+  
+              unless ($subProcessed) {
+                push @errors, $error;
+                pop @sFlowSamples;
+                return (\%sFlowDatagram, \@sFlowSamples, \@errors);
+              }
+
+            }
+
+          } else {
+
+            # error $sFlowSample{counterRecordsCount} too big
+            $error = "ERROR: [sFlow.pm] Datagram: Counter records count too big "
+                   . "- rest of the datagram skipped";
+
             push @errors, $error;
             pop @sFlowSamples;
             return (\%sFlowDatagram, \@sFlowSamples, \@errors);
+
           }
 
         }
 
+        elsif ($sFlowSample{sampleTypeEnterprise} == 0
+               and $sFlowSample{sampleTypeFormat} == EXPANDEDFLOWSAMPLE_SFLOWv5) {
+        
+          (undef,
+           $sFlowSample{sampleSequenceNumber},
+           $sFlowSample{sourceIdType},
+           $sFlowSample{sourceIdIndex},
+           $sFlowSample{samplingRate},
+           $sFlowSample{samplePool},
+           $sFlowSample{drops},
+           $sFlowSample{inputInterfaceFormat},
+           $sFlowSample{inputInterfaceValue},
+           $sFlowSample{outputInterfaceFormat},
+           $sFlowSample{outputInterfaceValue},
+           $sFlowSample{flowRecordsCount}) =
+            unpack("a$offset N11", $sFlowDatagramPacked);
+
+          $offset += 44;
+
+          # boundcheck for $sFlowSample{flowRecordsCount}
+          # $sFlowSample{flowRecordsCount} * 4
+          # cannot be longer than the number of $sFlowDatagramPacked byte - $offset
+
+          if (length($sFlowDatagramPacked) - $offset >
+            $sFlowSample{flowRecordsCount} * 4) {
+
+            for my $flowRecords (0 .. $sFlowSample{flowRecordsCount} - 1) {
+
+              ($subProcessed, $error) =
+                &_decodeFlowRecord(
+                  \$offset,
+                  \$sFlowDatagramPacked,
+                  \%sFlowDatagram,
+                  \%sFlowSample,
+                  \@sFlowSamples,
+                  \@errors,
+                );
+
+              unless ($subProcessed) {
+                push @errors, $error;
+                pop @sFlowSamples;
+                return (\%sFlowDatagram, \@sFlowSamples, \@errors);
+              }
+  
+            }
+  
+          } else {
+
+            # error $sFlowSample{flowRecordsCount} too big
+            $error = "ERROR: [sFlow.pm] Datagram: Flow records count too big "
+                   . "- rest of the datagram skipped";
+
+            push @errors, $error;
+            pop @sFlowSamples;
+            return (\%sFlowDatagram, \@sFlowSamples, \@errors);
+
+          }
+
+        }
+
+        elsif ($sFlowSample{sampleTypeEnterprise} == 0
+               and $sFlowSample{sampleTypeFormat} == EXPANDEDCOUNTERSAMPLE_SFLOWv5) {
+
+          (undef,
+           $sFlowSample{sampleSequenceNumber},
+           $sFlowSample{sourceIdType},
+           $sFlowSample{sourceIdIndex},
+           $sFlowSample{counterRecordsCount}) =
+            unpack("a$offset N4", $sFlowDatagramPacked);
+
+          $offset += 16;
+  
+          # boundcheck for $sFlowSample{counterRecordsCount}
+          # $sFlowSample{counterRecordsCount} * 4
+          # cannot be longer than the number of $sFlowDatagramPacked byte - $offset
+
+          if (length($sFlowDatagramPacked) - $offset >
+            $sFlowSample{counterRecordsCount} * 4) {
+
+            for my $counterRecords (0 .. $sFlowSample{counterRecordsCount} - 1) {
+
+              ($subProcessed, $error) =
+                &_decodeCounterRecord(
+                  \$offset,
+                  \$sFlowDatagramPacked,
+                  \%sFlowDatagram,
+                  \%sFlowSample,
+                  \@sFlowSamples,
+                );
+
+              unless ($subProcessed) {
+                push @errors, $error;
+                pop @sFlowSamples;
+                return (\%sFlowDatagram, \@sFlowSamples, \@errors);
+              }
+
+            }
+
+          } else {
+
+            # error $sFlowSample{counterRecordsCount} too big
+            $error = "ERROR: [sFlow.pm] Datagram: Counter records count too big "
+                   . "- rest of the datagram skipped";
+
+            push @errors, $error;
+            pop @sFlowSamples;
+            return (\%sFlowDatagram, \@sFlowSamples, \@errors);
+
+          }
+
+        }
+
+        else {
+
+          $error = "ERROR: [sFlow.pm] <sFlowV5:SampleData> AgentIP: $sFlowDatagram{AgentIp} Datagram: "
+                 . "$sFlowDatagram{datagramSequenceNumber} - Unknown sample enterprise: "
+                 . "$sFlowSample{sampleTypeEnterprise} or format: $sFlowSample{sampleTypeFormat} "
+                 . "- rest of the datagram skipped";
+  
+          push @errors, $error;
+          pop @sFlowSamples;
+		      return (\%sFlowDatagram, \@sFlowSamples, \@errors);
+        } 
+
       }
 
-      else {
+    } else {
 
-        $error = "ERROR: [sFlow.pm] <sFlowV5:SampleData> AgentIP: $sFlowDatagram{AgentIp} Datagram: "
-               . "$sFlowDatagram{datagramSequenceNumber} - Unknown sample enterprise: "
-               . "$sFlowSample{sampleTypeEnterprise} or format: $sFlowSample{sampleTypeFormat} "
-               . "- rest of the datagram skipped";
+      # error $sFlowDatagram{samplesInPacket} too big
+      $error = "ERROR: [sFlow.pm] Datagram: Samples in packet count too big "
+             . "- rest of the datagram skipped";
 
-        push @errors, $error;
-        pop @sFlowSamples;
-		    return (\%sFlowDatagram, \@sFlowSamples, \@errors);
-      }
+      push @errors, $error;
+      pop @sFlowSamples;
+      return (\%sFlowDatagram, \@sFlowSamples, \@errors);
 
     }
 
@@ -956,11 +1103,35 @@ sub _decodeFlowRecord {
     }
 
     elsif ($flowTypeFormat == USERDATA_SFLOWv5) {
-      &_decodeUserData(\$offset, $sFlowDatagramPackedRef, $sFlowDatagram, $sFlowSample);
+
+      ($subProcessed, $error) =
+        &_decodeUserData(
+          \$offset, 
+          $sFlowDatagramPackedRef, 
+          $sFlowDatagram, 
+          $sFlowSample
+        );
+
+      unless ($subProcessed) {
+        return (undef, $error);
+      }
+
     }
 
     elsif ($flowTypeFormat == URLDATA_SFLOWv5) {
-      &_decodeUrlData(\$offset, $sFlowDatagramPackedRef, $sFlowDatagram, $sFlowSample);
+
+      ($subProcessed, $error) =
+        &_decodeUrlData(
+          \$offset, 
+          $sFlowDatagramPackedRef, 
+          $sFlowDatagram, 
+          $sFlowSample
+        );
+
+      unless ($subProcessed) {
+        return (undef, $error);
+      }
+
     }
 
     elsif ($flowTypeFormat == MPLSDATA_SFLOWv5) {
@@ -998,15 +1169,48 @@ sub _decodeFlowRecord {
     }
 
     elsif ($flowTypeFormat == MPLSTUNNEL_SFLOWv5) {
-      &_decodeMplsTunnel(\$offset, $sFlowDatagramPackedRef, $sFlowSample);
+
+      ($subProcessed, $error) =
+        &_decodeMplsTunnel(
+          \$offset, 
+          $sFlowDatagramPackedRef, 
+          $sFlowSample
+        );
+
+      unless ($subProcessed) {
+        return (undef, $error);
+      }
+
     }
 
     elsif ($flowTypeFormat == MPLSVC_SFLOWv5) {
-      &_decodeMplsVc(\$offset, $sFlowDatagramPackedRef, $sFlowSample);
+
+      ($subProcessed, $error) =
+        &_decodeMplsVc(
+          \$offset, 
+          $sFlowDatagramPackedRef, 
+          $sFlowSample
+        );
+
+      unless ($subProcessed) {
+        return (undef, $error);
+      }
+
     }
 
     elsif ($flowTypeFormat == MPLSFEC_SFLOWv5) {
-      &_decodeMplsFec(\$offset, $sFlowDatagramPackedRef, $sFlowSample);
+
+      ($subProcessed, $error) =
+        &_decodeMplsFec(
+          \$offset, 
+          $sFlowDatagramPackedRef, 
+          $sFlowSample
+        );
+
+      unless ($subProcessed) {
+        return (undef, $error);
+      }
+
     }
 
     elsif ($flowTypeFormat == MPLSLVPFEC_SFLOWv5) {
@@ -1014,7 +1218,18 @@ sub _decodeFlowRecord {
     }
 
     elsif ($flowTypeFormat == VLANTUNNEL_SFLOWv5) {
-      &_decodeVlanTunnel(\$offset, $sFlowDatagramPackedRef, $sFlowSample);
+
+      ($subProcessed, $error) =
+        &_decodeVlanTunnel(
+          \$offset, 
+          $sFlowDatagramPackedRef, 
+          $sFlowSample
+        );
+
+      unless ($subProcessed) {
+        return (undef, $error);
+      }
+
     }
 
     else {
@@ -1116,6 +1331,7 @@ sub _decodeCounterRecord {
 
   $$offsetref = $offset;
   return (1, undef);
+
 }
 
 
@@ -1261,6 +1477,7 @@ sub _decodeEthernetFrameData {
 
   $offset += 24;
   $$offsetref = $offset;
+
 }
 
 
@@ -1293,6 +1510,7 @@ sub _decodeIPv4Data {
 
   $offset += 32;
   $$offsetref = $offset;
+
 }
 
 
@@ -1328,6 +1546,7 @@ sub _decodeIPv6Data {
 
   $offset += 56;
   $$offsetref = $offset;
+
 }
 
 
@@ -1353,6 +1572,7 @@ sub _decodeSwitchData {
 
   $offset += 16;
   $$offsetref = $offset;
+
 }
 
 
@@ -1404,6 +1624,7 @@ sub _decodeRouterData {
 
   $$offsetref = $offset;
   return (1, undef);
+
 }
 
 
@@ -1458,52 +1679,86 @@ sub _decodeGatewayData {
 
   $offset += 16;
 
-  # array containing the single paths
-  my @sFlowAsPaths = ();
+  # boundcheck for $sFlowSample->{GatewayDestAsPathsCount}
+  # $sFlowSample->{GatewayDestAsPathsCount} * 4 (that will be the min)
+  # cannot be longer than the number of $sFlowDatagramPacked byte - $offset
 
-  # reference to this array in extended data
-  $sFlowSample->{GatewayDestAsPaths} = \@sFlowAsPaths;
+  if (length($sFlowDatagramPacked) - $offset >
+    $sFlowSample->{GatewayDestAsPathsCount} * 4) {
 
-  for my $destAsPathCount (0 .. $sFlowSample->{GatewayDestAsPathsCount} - 1) {
+    # array containing the single paths
+    my @sFlowAsPaths = ();
 
-    # single path hash
-    my %sFlowAsPath = ();
+    # reference to this array in extended data
+    $sFlowSample->{GatewayDestAsPaths} = \@sFlowAsPaths;
 
-    # reference to this single path hash in the paths array
-    push @sFlowAsPaths, \%sFlowAsPath;
+    for my $destAsPathCount (0 .. $sFlowSample->{GatewayDestAsPathsCount} - 1) {
 
-    if ($sFlowDatagram->{sFlowVersion} >= SFLOWv4) {
+      # single path hash
+      my %sFlowAsPath = ();
 
-      (undef,
-       $sFlowAsPath{asPathSegmentType},
-       $sFlowAsPath{lengthAsList}) =
-        unpack("a$offset NN", $sFlowDatagramPacked);
+      # reference to this single path hash in the paths array
+      push @sFlowAsPaths, \%sFlowAsPath;
 
-      $offset += 8;
+      if ($sFlowDatagram->{sFlowVersion} >= SFLOWv4) {
 
-    } else {
+        (undef,
+         $sFlowAsPath{asPathSegmentType},
+         $sFlowAsPath{lengthAsList}) =
+          unpack("a$offset NN", $sFlowDatagramPacked);
 
-      $sFlowAsPath{lengthAsList} = 1;
+        $offset += 8;
+
+      } else {
+
+        $sFlowAsPath{lengthAsList} = 1;
+
+      }
+
+      # boundcheck for $sFlowAsPath{lengthAsList}
+      # $sFlowAsPath{lengthAsList} * 4
+      # cannot be longer than the number of $sFlowDatagramPacked byte - $offset
+
+      if (length($sFlowDatagramPacked) - $offset >
+        $sFlowAsPath{lengthAsList} * 4) {
+
+        # array containing the as numbers of a path
+        my @sFlowAsNumber = ();
+
+        # referece to this array in path hash
+        $sFlowAsPath{AsPath} = \@sFlowAsNumber;
+
+        for my $asListLength (0 .. $sFlowAsPath{lengthAsList} - 1) {
+
+          (undef,
+           my $asNumber) =
+            unpack("a$offset N", $sFlowDatagramPacked);
+
+          # push as number to array
+          push @sFlowAsNumber, $asNumber;
+          $offset += 4;
+        }
+
+      } else {
+
+        # error $sFlowAsPath{lengthAsList} too big
+        $error = "ERROR: [sFlow.pm] AsPath: Length AS list too big "
+                 . "- rest of the datagram skipped";
+
+        return (undef, $error);
+
+      }
 
     }
 
-    # array containing the as numbers of a path
-    my @sFlowAsNumber = ();
+  } else {
 
-    # referece to this array in path hash
-    $sFlowAsPath{AsPath} = \@sFlowAsNumber;
+    # error $sFlowSample->{GatewayDestAsPaths} too big
+    $error = "ERROR: [sFlow.pm] GatewayDestAsPaths: Gateway destination AS paths count too big "
+             . "- rest of the datagram skipped";
 
-    for my $asListLength (0 .. $sFlowAsPath{lengthAsList} - 1) {
-
-      (undef,
-       my $asNumber) =
-        unpack("a$offset N", $sFlowDatagramPacked);
-
-      # push as number to array
-      push @sFlowAsNumber, $asNumber;
-      $offset += 4;
-    }
-
+    return (undef, $error);
+  
   }
 
   # communities and localpref added in v.4.
@@ -1515,17 +1770,34 @@ sub _decodeGatewayData {
 
     $offset += 4;
 
-    my @sFlowCommunities = ();
-    $sFlowSample->{GatewayCommunities} = \@sFlowCommunities;
+    # boundcheck for $sFlowSample->{GatewayLengthCommunitiesList}
+    # $sFlowSample->{GatewayLengthCommunitiesList} * 4
+    # cannot be longer than the number of $sFlowDatagramPacked byte - $offset
 
-    for my $commLength (0 .. $sFlowSample->{GatewayLengthCommunitiesList} - 1) {
+    if (length($sFlowDatagramPacked) - $offset >
+      $sFlowSample->{GatewayLengthCommunitiesList} * 4) {
 
-      (undef,
-       my $community) =
-        unpack("a$offset N", $sFlowDatagramPacked);
+      my @sFlowCommunities = ();
+      $sFlowSample->{GatewayCommunities} = \@sFlowCommunities;
 
-      push @sFlowCommunities, $community;
-      $offset += 4;
+      for my $commLength (0 .. $sFlowSample->{GatewayLengthCommunitiesList} - 1) {
+
+        (undef,
+         my $community) =
+          unpack("a$offset N", $sFlowDatagramPacked);
+
+        push @sFlowCommunities, $community;
+        $offset += 4;
+      }
+
+    } else {
+
+      # error $sFlowSample->{GatewayLengthCommunitiesList} too big
+      $error = "ERROR: [sFlow.pm] GatewayCommunitiesList: Gateway communities list count too big "
+               . "- rest of the datagram skipped";
+
+      return (undef, $error);
+
     }
 
     (undef,
@@ -1538,6 +1810,7 @@ sub _decodeGatewayData {
 
   $$offsetref = $offset;
   return (1, undef);
+
 }
 
 
@@ -1552,6 +1825,7 @@ sub _decodeUserData {
 
   my $sFlowDatagramPacked = $$sFlowDatagramPackedRef;
   my $offset = $$offsetref;
+  my $error = undef;
 
   $sFlowSample->{USERDATA} = 'USERDATA';
 
@@ -1570,11 +1844,22 @@ sub _decodeUserData {
 
   $offset += 4;
 
-  (undef,
-   $sFlowSample->{UserSrcString}) =
-    unpack("a$offset A$sFlowSample->{UserLengthSrcString}", $sFlowDatagramPacked);
+  if ($sFlowSample->{UserLengthSrcString} < length($sFlowDatagramPacked) - $offset) {
 
-  $offset += $sFlowSample->{UserLengthSrcString};
+    (undef,
+     $sFlowSample->{UserSrcString}) =
+      unpack("a$offset A$sFlowSample->{UserLengthSrcString}", $sFlowDatagramPacked);
+
+    $offset += $sFlowSample->{UserLengthSrcString};
+
+  } else {
+
+    $error = "ERROR: [sFlow.pm] UserData: UserLengthSrcString too big "
+           . "- rest of the datagram skipped";
+
+    return (undef, $error);
+
+  }
 
   if ($sFlowDatagram->{sFlowVersion} == SFLOWv5) {
 
@@ -1591,13 +1876,26 @@ sub _decodeUserData {
 
   $offset += 4;
 
-  (undef,
-   $sFlowSample->{UserDestString}) =
-    unpack("a$offset A$sFlowSample->{UserLengthDestString}", $sFlowDatagramPacked);
+  if ($sFlowSample->{UserLengthDestString} < length($sFlowDatagramPacked) - $offset) {
 
-  $offset += $sFlowSample->{UserLengthDestString};
+    (undef,
+     $sFlowSample->{UserDestString}) =
+      unpack("a$offset A$sFlowSample->{UserLengthDestString}", $sFlowDatagramPacked);
+
+    $offset += $sFlowSample->{UserLengthDestString};
+
+  } else {
+
+    $error = "ERROR: [sFlow.pm] UserData: UserLengthDestString too big "
+           . "- rest of the datagram skipped";
+
+    return (undef, $error);
+
+  }
 
   $$offsetref = $offset;
+  return (1, undef);
+
 }
 
 
@@ -1612,6 +1910,7 @@ sub _decodeUrlData {
 
   my $sFlowDatagramPacked = $$sFlowDatagramPackedRef;
   my $offset = $$offsetref;
+  my $error = undef;
 
   $sFlowSample->{URLDATA} = 'URLDATA';
 
@@ -1622,28 +1921,52 @@ sub _decodeUrlData {
 
   $offset += 8;
 
-  (undef,
-   $sFlowSample->{Url}) =
-    unpack("a$offset A$sFlowSample->{UrlLength}", $sFlowDatagramPacked);
-
-  $offset += $sFlowSample->{UrlLength};
-
-  if ($sFlowDatagram->{sFlowVersion} == SFLOWv5) {
+  if ($sFlowSample->{UrlLength} < length($sFlowDatagramPacked) - $offset) {
 
     (undef,
-     $sFlowSample->{UrlHostLength}) =
-      unpack("a$offset N", $sFlowDatagramPacked);
+     $sFlowSample->{Url}) =
+      unpack("a$offset A$sFlowSample->{UrlLength}", $sFlowDatagramPacked);
 
-    $offset += 4;
+    $offset += $sFlowSample->{UrlLength};
 
-    (undef,
-     $sFlowSample->{UrlHost}) =
-      unpack("a$offset A$sFlowSample->{UrlHostLength}", $sFlowDatagramPacked);
+    if ($sFlowDatagram->{sFlowVersion} == SFLOWv5) {
 
-    $offset += $sFlowSample->{UrlHostLength};
+      (undef,
+       $sFlowSample->{UrlHostLength}) =
+        unpack("a$offset N", $sFlowDatagramPacked);
+
+      $offset += 4;
+
+      if ($sFlowSample->{UrlHostLength} < length($sFlowDatagramPacked) - $offset) {
+
+        (undef,
+         $sFlowSample->{UrlHost}) =
+          unpack("a$offset A$sFlowSample->{UrlHostLength}", $sFlowDatagramPacked);
+
+        $offset += $sFlowSample->{UrlHostLength};
+      }
+
+    } else {
+
+      $error = "ERROR: [sFlow.pm] UrlData: UrlHostLength too big "
+             . "- rest of the datagram skipped";
+
+      return (undef, $error);
+
+    }
+
+  } else {
+
+    $error = "ERROR: [sFlow.pm] UrlData: UrlLength too big "
+           . "- rest of the datagram skipped";
+
+    return (undef, $error);
+
   }
 
   $$offsetref = $offset;
+  return (1, undef);
+
 }
 
 
@@ -1692,31 +2015,69 @@ sub _decodeMplsData {
 
   $offset += 4;
 
-  my @MplsInLabelStack = ();
-  $sFlowSample->{MplsInLabelStack} = \@MplsInLabelStack;
+  # boundcheck for $sFlowSample->{MplsInLabelStackCount}
+  # $sFlowSample->{MplsInLabelStackCount} * 4
+  # cannot be longer than the number of $sFlowDatagramPacked byte - $offset
 
-  for my $MplsInLabelStackCount (0 .. $sFlowSample->{MplsInLabelStackCount} - 1) {
+  if (length($sFlowDatagramPacked) - $offset >
+    $sFlowSample->{MplsInLabelStackCount} * 4) {
 
-    (undef, my $MplsInLabel) = unpack("a$offset N", $sFlowDatagramPacked);
-    push @MplsInLabelStack, $MplsInLabel;
-    $offset += 4;
+    my @MplsInLabelStack = ();
+    $sFlowSample->{MplsInLabelStack} = \@MplsInLabelStack;
+
+    for my $MplsInLabelStackCount (0 .. $sFlowSample->{MplsInLabelStackCount} - 1) {
+
+      (undef, my $MplsInLabel) = unpack("a$offset N", $sFlowDatagramPacked);
+      push @MplsInLabelStack, $MplsInLabel;
+      $offset += 4;
+    }
+
+  } else {
+
+    # error $sFlowSample->{MplsInLabelStack} too big
+    $error = "ERROR: [sFlow.pm] MplsInLabel: Mpls in label stack count too big "
+             . "- rest of the datagram skipped";
+
+    return (undef, $error);
+
   }
 
-  (undef, $sFlowSample->{MplsOutLabelStackCount}) = unpack("a$offset N", $sFlowDatagramPacked);
+  (undef, 
+   $sFlowSample->{MplsOutLabelStackCount}) = 
+    unpack("a$offset N", $sFlowDatagramPacked);
+
   $offset += 4;
 
-  my @MplsOutLabelStack = ();
-  $sFlowSample->{MplsOutLabelStack} = \@MplsInLabelStack;
+  # boundcheck for $sFlowSample->{MplsOutLabelStackCount}
+  # $sFlowSample->{MplsOutLabelStackCount} * 4
+  # cannot be longer than the number of $sFlowDatagramPacked byte - $offset
 
-  for my $MplsOutLabelStackCount (0 .. $sFlowSample->{MplsOutLabelStackCount} - 1) {
+  if (length($sFlowDatagramPacked) - $offset >
+    $sFlowSample->{MplsOutLabelStackCount} * 4) {
 
-    (undef, my $MplsOutLabel) = unpack("a$offset N", $sFlowDatagramPacked);
-    push @MplsOutLabelStack, $MplsOutLabel;
-    $offset += 4;
+    my @MplsOutLabelStack = ();
+    $sFlowSample->{MplsOutLabelStack} = \@MplsOutLabelStack;
+
+    for my $MplsOutLabelStackCount (0 .. $sFlowSample->{MplsOutLabelStackCount} - 1) {
+
+      (undef, my $MplsOutLabel) = unpack("a$offset N", $sFlowDatagramPacked);
+      push @MplsOutLabelStack, $MplsOutLabel;
+      $offset += 4;
+    }
+
+  } else {
+
+    # error $sFlowSample->{MplsOutLabelStack} too big
+    $error = "ERROR: [sFlow.pm] MplsOutLabel: Mpls out label stack count too big "
+             . "- rest of the datagram skipped";
+
+    return (undef, $error);
+
   }
 
   $$offsetref = $offset;
   return (1, undef);
+
 }
 
 
@@ -1796,6 +2157,7 @@ sub _decodeMplsTunnel {
 
   my $sFlowDatagramPacked = $$sFlowDatagramPackedRef;
   my $offset = $$offsetref;
+  my $error = undef;
 
   $sFlowSample->{MPLSTUNNEL} = 'MPLSTUNNEL';
 
@@ -1805,20 +2167,34 @@ sub _decodeMplsTunnel {
 
   $offset += 4;
 
-  (undef,
-   $sFlowSample->{MplsTunnelName}) =
-    unpack("a$offset A$sFlowSample->{MplsTunnelLength}", $sFlowDatagramPacked);
+  if ($sFlowSample->{MplsTunnelLength} < length($sFlowDatagramPacked) - $offset) {
 
-  $offset += $sFlowSample->{MplsTunnelLength};
+    (undef,
+     $sFlowSample->{MplsTunnelName}) =
+      unpack("a$offset A$sFlowSample->{MplsTunnelLength}", $sFlowDatagramPacked);
 
-  (undef,
-   $sFlowSample->{MplsTunnelId},
-   $sFlowSample->{MplsTunnelCosValue}) =
-    unpack("a$offset NN", $sFlowDatagramPacked);
+    $offset += $sFlowSample->{MplsTunnelLength};
 
-  $offset += 8;
+    (undef,
+     $sFlowSample->{MplsTunnelId},
+     $sFlowSample->{MplsTunnelCosValue}) =
+      unpack("a$offset NN", $sFlowDatagramPacked);
+
+    $offset += 8;
+
+  } else {
+
+    # error $sFlowSample->{MplsTunnelLength} too big
+    $error = "ERROR: [sFlow.pm] MplsTunnel: MplsTunnelLength too big "
+             . "- rest of the datagram skipped";
+
+    return (undef, $error);
+
+  }
 
   $$offsetref = $offset;
+  return (1, undef);
+
 }
 
 
@@ -1832,6 +2208,7 @@ sub _decodeMplsVc {
 
   my $sFlowDatagramPacked = $$sFlowDatagramPackedRef;
   my $offset = $$offsetref;
+  my $error = undef;
 
   $sFlowSample->{MPLSVC} = 'MPLSVC';
 
@@ -1841,20 +2218,34 @@ sub _decodeMplsVc {
 
   $offset += 4;
 
-  (undef,
-   $sFlowSample->{MplsVcInstanceName}) =
-    unpack("a$offset A$sFlowSample->{MplsVcInstanceNameLength}", $sFlowDatagramPacked);
+  if ($sFlowSample->{MplsVcInstanceNameLength} < length($sFlowDatagramPacked) - $offset) {
 
-  $offset += $sFlowSample->{MplsVcInstanceNameLength};
+    (undef,
+     $sFlowSample->{MplsVcInstanceName}) =
+      unpack("a$offset A$sFlowSample->{MplsVcInstanceNameLength}", $sFlowDatagramPacked);
 
-  (undef,
-   $sFlowSample->{MplsVcId},
-   $sFlowSample->{MplsVcLabelCosValue}) =
-    unpack("a$offset NN", $sFlowDatagramPacked);
+    $offset += $sFlowSample->{MplsVcInstanceNameLength};
 
-  $offset += 8;
+    (undef,
+     $sFlowSample->{MplsVcId},
+     $sFlowSample->{MplsVcLabelCosValue}) =
+      unpack("a$offset NN", $sFlowDatagramPacked);
+
+    $offset += 8;
+
+  } else {
+
+    # error $sFlowSample->{MplsVcInstanceNameLength} too big
+    $error = "ERROR: [sFlow.pm] MplsVc: MplsVcInstanceNameLength too big "
+             . "- rest of the datagram skipped";
+
+    return (undef, $error);
+
+  }
 
   $$offsetref = $offset;
+  return (1, undef);
+
 }
 
 
@@ -1868,6 +2259,7 @@ sub _decodeMplsFec {
 
   my $sFlowDatagramPacked = $$sFlowDatagramPackedRef;
   my $offset = $$offsetref;
+  my $error = undef;
 
   $sFlowSample->{MPLSFEC} = 'MPLSFEC';
 
@@ -1877,16 +2269,30 @@ sub _decodeMplsFec {
 
   $offset += 4;
 
-  (undef,
-   $sFlowSample->{MplsFtnDescr}) =
-    unpack("a$offset A$sFlowSample->{MplsFtnDescrLength}", $sFlowDatagramPacked);
+  if ($sFlowSample->{MplsFtnDescrLength} < length($sFlowDatagramPacked) - $offset) {
 
-  $offset += $sFlowSample->{MplsFtrDescrLength};
+    (undef,
+     $sFlowSample->{MplsFtnDescr}) =
+      unpack("a$offset A$sFlowSample->{MplsFtnDescrLength}", $sFlowDatagramPacked);
 
-  (undef, $sFlowSample->{MplsFtnMask}) = unpack("a$offset N", $sFlowDatagramPacked);
-  $offset += 4;
+    $offset += $sFlowSample->{MplsFtrDescrLength};
+
+    (undef, $sFlowSample->{MplsFtnMask}) = unpack("a$offset N", $sFlowDatagramPacked);
+    $offset += 4;
+
+  } else {
+
+    # error $sFlowSample->{{MplsFtnDescrLength} too big
+    $error = "ERROR: [sFlow.pm] MplsFec: MplsFtnDescrLength too big "
+             . "- rest of the datagram skipped";
+
+    return (undef, $error);
+
+  }
 
   $$offsetref = $offset;
+  return (1, undef);
+
 }
 
 
@@ -1923,6 +2329,7 @@ sub _decodeVlanTunnel {
 
   my $sFlowDatagramPacked = $$sFlowDatagramPackedRef;
   my $offset = $$offsetref;
+  my $error = undef;
 
   $sFlowSample->{VLANTUNNEL} = 'VLANTUNNEL';
 
@@ -1932,17 +2339,36 @@ sub _decodeVlanTunnel {
 
   $offset += 4;
 
-  my @VlanTunnelLayerStack = ();
-  $sFlowSample->{VlanTunnelLayerStack} = \@VlanTunnelLayerStack;
+  # boundcheck for $sFlowSample->{VlanTunnelLayerStackCount}
+  # $sFlowSample->{VlanTunnelLayerStackCount} * 4
+  # cannot be longer than the number of $sFlowDatagramPacked byte - $offset
 
-  for my $VlanTunnelLayerCount (0 .. $sFlowSample->{VlanTunnelLayerStackCount} - 1) {
+  if (length($sFlowDatagramPacked) - $offset > 
+    $sFlowSample->{VlanTunnelLayerStackCount} * 4) {
 
-    (undef, my $VlanTunnelLayer) = unpack("a$offset N", $sFlowDatagramPacked);
-    push @VlanTunnelLayerStack, $VlanTunnelLayer;
-    $offset += 4;
+    my @VlanTunnelLayerStack = ();
+    $sFlowSample->{VlanTunnelLayerStack} = \@VlanTunnelLayerStack;
+
+    for my $VlanTunnelLayerCount (0 .. $sFlowSample->{VlanTunnelLayerStackCount} - 1) {
+
+      (undef, my $VlanTunnelLayer) = unpack("a$offset N", $sFlowDatagramPacked);
+      push @VlanTunnelLayerStack, $VlanTunnelLayer;
+      $offset += 4;
+    }
+
+  } else {
+
+    # error $sFlowSample->{VlanTunnelLayerStackCount} too big
+    $error = "ERROR: [sFlow.pm] VlanTunnel: Vlan tunnel stack count too big "
+             . "- rest of the datagram skipped";
+
+    return (undef, $error);
+
   }
 
   $$offsetref = $offset;
+  return (1, undef);
+
 }
 
 
