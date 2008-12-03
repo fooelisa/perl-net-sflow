@@ -55,5 +55,8 @@ v. 0.08
   + boundry checks on values taken from datagram used as offset for unpack()
     thanks ilja! :D
 
+v. 0.09
+
+
 Elisa Jasinska <elisa.jasinska@ams-ix.net>
-2008/11/17
+2008/12/03

@@ -6,7 +6,7 @@
 # With many thanks to Tobias Engel for his help and support!
 #
 #
-# sFlow.pm - 2008/11/24
+# sFlow.pm - 2008/12/03
 #
 # Please send comments or bug reports to <sflow@ams-ix.net>
 #
@@ -41,7 +41,7 @@ require Exporter;
 use Math::BigInt;
 
 
-our $VERSION = '0.08';
+our $VERSION = '0.09';
 our @EXPORT_OK = qw(decode);
 
 
