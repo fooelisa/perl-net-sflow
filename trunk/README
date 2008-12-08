@@ -1,7 +1,7 @@
 
-sFlow 0.08
+sFlow 0.10
 
-  This is version 0.09 of sFlow.pm, a module decoding sFlow datagrams 
+  This is version 0.10 of sFlow.pm, a module decoding sFlow datagrams 
   version 2, 3, 4 and 5. 
 
   sFlow is an industry standard technology for monitoring high speed 
