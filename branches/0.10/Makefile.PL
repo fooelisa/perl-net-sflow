@@ -13,6 +13,8 @@ WriteMakefile(
     'NAME'            => 'Net::sFlow',
     'VERSION_FROM'    => 'sFlow.pm', # finds $VERSION
     'LIBS'            => ['-lm'], # e.g., '-lm'
+    'EXE_FILES'       =>  [ 'examples/sFluxDebug.pl'],
+    'INSTALLSCRIPT'   => "/usr/local/bin",
     'ABSTRACT'        => 'decode sFlow datagrams',
     'AUTHOR'          => 'Elisa Jasinska <elisa.jasinska@ams-ix.net>',
     'dist'            => { COMPRESS  =>  'gzip',

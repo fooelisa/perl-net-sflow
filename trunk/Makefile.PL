@@ -14,6 +14,8 @@ WriteMakefile(
     'VERSION_FROM'    => 'sFlow.pm', # finds $VERSION
     'LIBS'            => ['-lm'], # e.g., '-lm'
     'ABSTRACT'        => 'decode sFlow datagrams',
+    'EXE_FILES'       =>  [ 'examples/sFluxDebug.pl'],
+    'INSTALLSCRIPT'   => "/usr/local/bin",
     'AUTHOR'          => 'Elisa Jasinska <elisa.jasinska@ams-ix.net>',
     'dist'            => { COMPRESS  =>  'gzip',
                            SUFFIX    =>  'gz'
