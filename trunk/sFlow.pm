@@ -6,7 +6,7 @@
 # With many thanks to Tobias Engel for his help and support!
 #
 #
-# sFlow.pm - 2008/12/10
+# sFlow.pm - 2009/01/09
 #
 # Please send comments or bug reports to <sflow@ams-ix.net>
 #
@@ -20,7 +20,7 @@
 # Dataformat: http://jasinska.de/sFlow/sFlowV5FormatDiagram/
 #
 #
-# Copyright (c) 2008 AMS-IX B.V.
+# Copyright (c) 2006 - 2009 AMS-IX B.V.
 #
 # This package is free software and is provided "as is" without express 
 # or implied warranty.  It may be used, redistributed and/or modified 
@@ -41,7 +41,7 @@ require Exporter;
 use Math::BigInt;
 
 
-our $VERSION = '0.10';
+our $VERSION = '0.11';
 our @EXPORT_OK = qw(decode);
 
 
@@ -250,7 +250,7 @@ sub decode {
       pop @sFlowSamples;
       return (\%sFlowDatagram, \@sFlowSamples, \@errors);
 
-    } elsif ($sFlowDatagram{samplesInPacket} <= 0) {
+    } elsif ($sFlowDatagram{samplesInPacket} < 0) {
 
       # error $sFlowDatagram{samplesInPacket} too small
       $error = "ERROR: [sFlow.pm] Datagram: Samples in packet count too small "
@@ -360,7 +360,7 @@ sub decode {
             pop @sFlowSamples;
             return (\%sFlowDatagram, \@sFlowSamples, \@errors);
 
-          } elsif ($sFlowSample{extendedDataInSample} <= 0) {
+          } elsif ($sFlowSample{extendedDataInSample} < 0) {
 
             # error $sFlowSample{extendedDataInSample} too small
             $error = "ERROR: [sFlow.pm] Datagram: Extended data in sample count too small "
@@ -599,7 +599,7 @@ sub decode {
       pop @sFlowSamples;
       return (\%sFlowDatagram, \@sFlowSamples, \@errors);
 
-    } elsif ($sFlowDatagram{samplesInPacket} <= 0) {
+    } elsif ($sFlowDatagram{samplesInPacket} < 0) {
 
       # error $sFlowDatagram{samplesInPacket} too small
       $error = "ERROR: [sFlow.pm] Datagram: Samples in packet count too small "
@@ -659,13 +659,13 @@ sub decode {
 
             # error $sFlowSample{flowRecordsCount} too big
             $error = "ERROR: [sFlow.pm] Datagram: Flow records count too big "
-                   . "- rest of the datagram skipped";
+                   . "for this packet length - rest of the datagram skipped";
 
             push @errors, $error;
             pop @sFlowSamples;
             return (\%sFlowDatagram, \@sFlowSamples, \@errors);
 
-          } elsif ($sFlowSample{flowRecordsCount} <= 0) {
+          } elsif ($sFlowSample{flowRecordsCount} < 0) {
 
             # error $sFlowSample{flowRecordsCount} too small
             $error = "ERROR: [sFlow.pm] Datagram: Flow records count too small "
@@ -730,7 +730,7 @@ sub decode {
             pop @sFlowSamples;
             return (\%sFlowDatagram, \@sFlowSamples, \@errors);
 
-          } elsif ($sFlowSample{counterRecordsCount} <= 0) {
+          } elsif ($sFlowSample{counterRecordsCount} < 0) {
 
             # error $sFlowSample{counterRecordsCount} too small
             $error = "ERROR: [sFlow.pm] Datagram: Counter records count too small "
@@ -793,16 +793,16 @@ sub decode {
 
             # error $sFlowSample{flowRecordsCount} too big
             $error = "ERROR: [sFlow.pm] Datagram: Flow records count too big "
-                   . "- rest of the datagram skipped";
+                   . "for this packet length - rest of the datagram skipped";
 
             push @errors, $error;
             pop @sFlowSamples;
             return (\%sFlowDatagram, \@sFlowSamples, \@errors);
 
-          } elsif ($sFlowSample{flowRecordsCount} <= 0) {
+          } elsif ($sFlowSample{flowRecordsCount} < 0) {
 
             # error $sFlowSample{flowRecordsCount} too small
-            $error = "ERROR: [sFlow.pm] Datagram: Flow records count too small "
+            $error = "ERROR: [sFlow.pm] Datagram: Flow records count too small"
                    . "- rest of the datagram skipped";
 
             push @errors, $error;
@@ -862,7 +862,7 @@ sub decode {
             pop @sFlowSamples;
             return (\%sFlowDatagram, \@sFlowSamples, \@errors);
 
-          } elsif ($sFlowSample{counterRecordsCount} <= 0) {
+          } elsif ($sFlowSample{counterRecordsCount} < 0) {
 
             # error $sFlowSample{counterRecordsCount} too small
             $error = "ERROR: [sFlow.pm] Datagram: Counter records count too small "
@@ -1471,7 +1471,7 @@ sub _decodeHeaderData {
 
     return (undef, $error);
 
-  } elsif ($sFlowSample->{HeaderSizeByte} <= 0) {
+  } elsif ($sFlowSample->{HeaderSizeByte} < 0) {
 
     # error: header size byte too small
     $error = "ERROR: [sFlow.pm] HeaderData: Header data too small";
@@ -1800,7 +1800,7 @@ sub _decodeGatewayData {
 
     return (undef, $error);
  
-  } elsif ($sFlowSample->{GatewayDestAsPathsCount} <= 0) {
+  } elsif ($sFlowSample->{GatewayDestAsPathsCount} < 0) {
  
     # error $sFlowSample->{GatewayDestAsPaths} too small
     $error = "ERROR: [sFlow.pm] GatewayDestAsPaths: Gateway destination AS paths count too small "
@@ -1852,7 +1852,7 @@ sub _decodeGatewayData {
 
         return (undef, $error);
 
-      } elsif ($sFlowAsPath{lengthAsList} <= 0) {
+      } elsif ($sFlowAsPath{lengthAsList} < 0) {
 
         # error $sFlowAsPath{lengthAsList} too small
         $error = "ERROR: [sFlow.pm] AsPath: Length AS list too small "
@@ -1907,7 +1907,8 @@ sub _decodeGatewayData {
 
       return (undef, $error);
     
-    } elsif ($sFlowSample->{GatewayLengthCommunitiesList} <= 0) {
+    # $sFlowSample->{GatewayLengthCommunitiesList} might very well be 0
+    } elsif ($sFlowSample->{GatewayLengthCommunitiesList} < 0) {
 
       # error $sFlowSample->{GatewayLengthCommunitiesList} too small
       $error = "ERROR: [sFlow.pm] GatewayCommunitiesList: Gateway communities list count too small "
@@ -1983,7 +1984,7 @@ sub _decodeUserData {
 
     return (undef, $error);
 
-  } elsif ($sFlowSample->{UserLengthSrcString} <= 0) {
+  } elsif ($sFlowSample->{UserLengthSrcString} < 0) {
 
     $error = "ERROR: [sFlow.pm] UserData: UserLengthSrcString too small "
            . "- rest of the datagram skipped";
@@ -2026,7 +2027,7 @@ sub _decodeUserData {
 
     return (undef, $error);
 
-  } elsif ($sFlowSample->{UserLengthDestString} <= 0) {
+  } elsif ($sFlowSample->{UserLengthDestString} < 0) {
 
     $error = "ERROR: [sFlow.pm] UserData: UserLengthDestString too small "
            . "- rest of the datagram skipped";
@@ -2082,7 +2083,7 @@ sub _decodeUrlData {
 
     return (undef, $error);
 
-  } elsif ($sFlowSample->{UrlLength} <= 0) {
+  } elsif ($sFlowSample->{UrlLength} < 0) {
 
     $error = "ERROR: [sFlow.pm] UrlData: UrlLength too small "
            . "- rest of the datagram skipped";
@@ -2116,7 +2117,7 @@ sub _decodeUrlData {
 
         return (undef, $error);
 
-      } elsif ($sFlowSample->{UrlHostLength} <= 0) {
+      } elsif ($sFlowSample->{UrlHostLength} < 0) {
 
         $error = "ERROR: [sFlow.pm] UrlData: UrlHostLength too small "
                . "- rest of the datagram skipped";
@@ -2205,7 +2206,7 @@ sub _decodeMplsData {
 
     return (undef, $error);
 
-  } elsif ($sFlowSample->{MplsInLabelStackCount} <= 0) {
+  } elsif ($sFlowSample->{MplsInLabelStackCount} < 0) {
 
     # error $sFlowSample->{MplsInLabelStack} too small
     $error = "ERROR: [sFlow.pm] MplsInLabel: Mpls in label stack count too small "
@@ -2246,7 +2247,7 @@ sub _decodeMplsData {
 
     return (undef, $error);
 
-  } elsif ($sFlowSample->{MplsOutLabelStackCount} <= 0) {
+  } elsif ($sFlowSample->{MplsOutLabelStackCount} < 0) {
 
     # error $sFlowSample->{MplsOutLabelStack} too small
     $error = "ERROR: [sFlow.pm] MplsOutLabel: Mpls out label stack count too small "
@@ -2368,7 +2369,7 @@ sub _decodeMplsTunnel {
 
     return (undef, $error);
 
-  } elsif ($sFlowSample->{MplsTunnelNameLength} <= 0) {
+  } elsif ($sFlowSample->{MplsTunnelNameLength} < 0) {
 
     # error $sFlowSample->{MplsTunnelLength} too small
     $error = "ERROR: [sFlow.pm] MplsTunnel: MplsTunnelNameLength too small "
@@ -2431,7 +2432,7 @@ sub _decodeMplsVc {
 
     return (undef, $error);
 
-  } elsif ($sFlowSample->{MplsVcInstanceNameLength} <= 0) {
+  } elsif ($sFlowSample->{MplsVcInstanceNameLength} < 0) {
 
     # error $sFlowSample->{MplsVcInstanceNameLength} too small
     $error = "ERROR: [sFlow.pm] MplsVc: MplsVcInstanceNameLength too small "
@@ -2494,7 +2495,7 @@ sub _decodeMplsFec {
 
     return (undef, $error);
 
-  } elsif ($sFlowSample->{MplsFtnDescrLength} <= 0) {
+  } elsif ($sFlowSample->{MplsFtnDescrLength} < 0) {
 
     # error $sFlowSample->{{MplsFtnDescrLength} too small
     $error = "ERROR: [sFlow.pm] MplsFec: MplsFtnDescrLength too small "
@@ -2581,7 +2582,7 @@ sub _decodeVlanTunnel {
 
     return (undef, $error);
 
-  } elsif ($sFlowSample->{VlanTunnelLayerStackCount} <= 0) {
+  } elsif ($sFlowSample->{VlanTunnelLayerStackCount} < 0) {
 
     # error $sFlowSample->{VlanTunnelLayerStackCount} too small
     $error = "ERROR: [sFlow.pm] VlanTunnel: Vlan tunnel stack count too small "

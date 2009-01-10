@@ -114,19 +114,30 @@ sub processPcap {
   print "\n\n-------------------------------------------------------------------------------\n";
   print "PCAP length: $header->{len} timestamp in sec:  $header->{tv_sec}\n";
 
+  my %sFlowPacket = ();
+
   # unpack ethernet header
   my $ethObj = NetPacket::Ethernet->decode($pcapPacket);
-  # unpack ip header
-  my $ipObj = NetPacket::IP->decode($ethObj->{data});
-  # unpack udp header
-  my $udpObj = NetPacket::UDP->decode($ipObj->{data});
-
-  my %sFlowPacket = ();
 
   $sFlowPacket{srcMac}    = $ethObj->{src_mac};
   $sFlowPacket{destMac}   = $ethObj->{dest_mac};
+  $sFlowPacket{type}      = $ethObj->{type};
+
+  # who came up with the idea to decode the ether type as 'n' in NetPacket?!?!?!?
+  if ($ethObj->{type} eq '33024') {
+    # cut off the vlan tag
+    ($sFlowPacket{vlanTag},
+     $sFlowPacket{type}) = unpack ('nH4',$ethObj->{data});
+    $ethObj->{data} = substr($ethObj->{data},4);
+  }
+
+  # unpack ip header
+  my $ipObj = NetPacket::IP->decode($ethObj->{data});
   $sFlowPacket{srcIP}     = $ipObj->{src_ip};
   $sFlowPacket{destIP}    = $ipObj->{dest_ip};
+
+  # unpack udp header
+  my $udpObj = NetPacket::UDP->decode($ipObj->{data});
   $sFlowPacket{srcPort}   = $udpObj->{src_port};
   $sFlowPacket{destPort}  = $udpObj->{dest_port};
 
@@ -205,6 +216,8 @@ sub preparePrint {
   my @packetOrder = (
     "srcMac",
     "destMac",
+    "vlanTag",
+    "type",
     "srcIP",
     "destIP",
     "srcPort",
