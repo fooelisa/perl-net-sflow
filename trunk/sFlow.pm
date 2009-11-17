@@ -6,7 +6,7 @@
 # With many thanks to Tobias Engel for his help and support!
 #
 #
-# sFlow.pm - 2009/01/20
+# $ID$
 #
 # Please send comments or bug reports to <sflow@ams-ix.net>
 #
@@ -20,7 +20,7 @@
 # Dataformat: http://jasinska.de/sFlow/sFlowV5FormatDiagram/
 #
 #
-# Copyright (c) 2006 - 2009 AMS-IX B.V.
+# Copyright (c) 2006 - 2010 AMS-IX B.V.
 #
 # This package is free software and is provided "as is" without express 
 # or implied warranty.  It may be used, redistributed and/or modified 
@@ -2943,7 +2943,7 @@ Net::sFlow - decode sFlow datagrams
     print "sFlow version: $sFlowDatagramRef->{sFlowVersion}\n";
     print "datagram sequence number: $sFlowDatagramRef->{datagramSequenceNumber}\n";
 
-    foreach my $sFlowSample (@{$printSamplesRef}) {
+    foreach my $sFlowSample (@{$sFlowSamplesRef}) {
       print "\n";
       print "---Sample---\n";
       print "sample sequence number: $sFlowSample->{sampleSequenceNumber}\n";
