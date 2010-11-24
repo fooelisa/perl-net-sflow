@@ -1,15 +1,9 @@
 #!/usr/bin/perl
 #
+# $Id$
 #
-# My first perl project ;)
-# Elisa Jasinska <elisa.jasinska@ams-ix.net>
-#
-# sFluxDebug.pl - 2008/12/10
-#
-# Please send comments or bug reports to <sflow@ams-ix.net>
-#
-#
-# Copyright (c) 2008 AMS-IX B.V.
+# Elisa Jasinska <elisa@jasinska.de>
+# Copyright (c) 2010
 #
 # This package is free software and is provided "as is" without express 
 # or implied warranty.  It may be used, redistributed and/or modified 
@@ -35,7 +29,7 @@ use NetPacket::UDP;
 use Net::sFlow;
 
 # to listen to socket
-use IO::Socket::INET;
+use IO::Socket::INET6;
 
 
 
@@ -44,7 +38,7 @@ use IO::Socket::INET;
 # options
 my %options = ();
 
-getopts("f:p:h", \%options)
+getopts("i:f:p:h", \%options)
   or &usage;
 
 
@@ -77,9 +71,10 @@ else {
 sub usage {
 
   print
-    qq{usage: sFluxDebug.pl -h | -f filename | -p port
+    qq{usage: sFluxDebug.pl -h | -f filename | -p port -i (4|6)
     -h          : this (help) message
     -f <file>   : read from pcap file <file>
+    -i (4|6)    : listen on v4 or v6 address
     -p <port>   : listen to port <port>\n};
   exit;
 
@@ -171,9 +166,21 @@ sub listenPort {
     $port = '6343';
   }
 
-  my $sock = IO::Socket::INET->new( LocalPort => $port,
-                                    Proto     => 'udp')
-                               or die "Can't bind : $!\n";
+  if (defined($options{i}) and $options{i} eq "6") {
+
+    my $sock = IO::Socket::INET->new( Domain => AF_INET6,
+                                      LocalPort => $port,
+                                      Proto     => 'udp')
+                                 or die "Can't bind : $!\n";
+
+  } else {
+
+    my $sock = IO::Socket::INET->new( Domain => AF_INET,
+                                      LocalPort => $port,
+                                      Proto     => 'udp')
+                                 or die "Can't bind : $!\n";
+
+  }
 
   print "Port: $port\n";
   print "Listening...\n";

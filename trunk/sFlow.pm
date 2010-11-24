@@ -1,14 +1,8 @@
 #!/usr/bin/perl
 #
-#
-# My first perl project ;)
-# Elisa Jasinska <elisa.jasinska@ams-ix.net>
 # With many thanks to Tobias Engel for his help and support!
 #
-#
-# $ID$
-#
-# Please send comments or bug reports to <sflow@ams-ix.net>
+# $Id$
 #
 #
 # sFlow v4 RFC 3176 
@@ -20,7 +14,8 @@
 # Dataformat: http://jasinska.de/sFlow/sFlowV5FormatDiagram/
 #
 #
-# Copyright (c) 2006 - 2010 AMS-IX B.V.
+# Elisa Jasinska <elisa@jasinska.de>
+# Copyright (c) 2010
 #
 # This package is free software and is provided "as is" without express 
 # or implied warranty.  It may be used, redistributed and/or modified 
