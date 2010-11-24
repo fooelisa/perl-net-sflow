@@ -4,6 +4,14 @@
 #
 # $Id$
 #
+# Elisa Jasinska <elisa@jasinska.de>
+# Copyright (c) 2010
+#
+# This package is free software and is provided "as is" without express 
+# or implied warranty.  It may be used, redistributed and/or modified 
+# under the terms of the Perl Artistic License (see
+# http://www.perl.com/perl/misc/Artistic.html)
+#
 #
 # sFlow v4 RFC 3176 
 # http://www.ietf.org/rfc/rfc3176.txt
@@ -12,15 +20,6 @@
 # sFlow v5 Memo
 # http://sflow.org/sflow_version_5.txt
 # Dataformat: http://jasinska.de/sFlow/sFlowV5FormatDiagram/
-#
-#
-# Elisa Jasinska <elisa@jasinska.de>
-# Copyright (c) 2010
-#
-# This package is free software and is provided "as is" without express 
-# or implied warranty.  It may be used, redistributed and/or modified 
-# under the terms of the Perl Artistic License (see
-# http://www.perl.com/perl/misc/Artistic.html)
 #
 
 
