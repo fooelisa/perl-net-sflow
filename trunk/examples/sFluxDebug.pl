@@ -151,6 +151,7 @@ sub listenPort {
 
   my $port = undef;
   my $packet = undef;
+  my $sock = undef;
 
   if (defined($options{p})) {
 
@@ -168,16 +169,16 @@ sub listenPort {
 
   if (defined($options{i}) and $options{i} eq "6") {
 
-    my $sock = IO::Socket::INET->new( Domain => AF_INET6,
-                                      LocalPort => $port,
-                                      Proto     => 'udp')
+    $sock = IO::Socket::INET6->new( Domain => AF_INET6,
+                                   LocalPort => $port,
+                                   Proto     => 'udp')
                                  or die "Can't bind : $!\n";
 
   } else {
 
-    my $sock = IO::Socket::INET->new( Domain => AF_INET,
-                                      LocalPort => $port,
-                                      Proto     => 'udp')
+    $sock = IO::Socket::INET6->new( Domain => AF_INET,
+                                   LocalPort => $port,
+                                   Proto     => 'udp')
                                  or die "Can't bind : $!\n";
 
   }
