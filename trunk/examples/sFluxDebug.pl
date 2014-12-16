@@ -1,9 +1,9 @@
 #!/usr/bin/perl
 #
-# $Id$
-#
 # Elisa Jasinska <elisa@jasinska.de>
-# Copyright (c) 2010
+# 
+# 
+# Copyright (c) 2006 - 2015 AMS-IX B.V. 
 #
 # This package is free software and is provided "as is" without express 
 # or implied warranty.  It may be used, redistributed and/or modified 
@@ -483,6 +483,23 @@ sub preparePrint {
     "multicastPkts",
     "broadcastPkts",
     "discards",
+
+    "COUNTERLAG",
+    "dot3adAggPortActorSystemID",
+    "dot3adAggPortPartnerOperSystemID",
+    "dot3adAggPortAttachedAggID",
+    "dot3adAggPortActorAdminState",
+    "dot3adAggPortActorOperState",
+    "dot3adAggPortPartnerAdminState",
+    "dot3adAggPortPartnerOperState",
+    "dot3adAggPortStatsLACPDUsRx",
+    "dot3adAggPortStatsMarkerPDUsRx",
+    "dot3adAggPortStatsMarkerResponsePDUsRx",
+    "dot3adAggPortStatsUnknownRx",
+    "dot3adAggPortStatsIllegalRx",
+    "dot3adAggPortStatsLACPDUsTx",
+    "dot3adAggPortStatsMarkerPDUsTx",
+    "dot3adAggPortStatsMarkerResponsePDUsTx",
 
     "COUNTERPROCESSOR",
     "cpu5s",

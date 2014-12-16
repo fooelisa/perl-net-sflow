@@ -71,7 +71,10 @@ v. 0.11
 
 v. 0.12
   + fixed typo in POD, Synopsis
+  + decode sample type 7 (lag_port_stats)
+    thanks andrew! :D
 
 
-Elisa Jasinska <elisa.jasinska@ams-ix.net>
-2009/11/17
+Elisa Jasinska <elisa@jasinska.de>
+12/16/2014
+

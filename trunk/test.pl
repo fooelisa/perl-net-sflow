@@ -2,8 +2,8 @@
 #
 # test.pl for sFlow.pm
 #
-# Elisa Jasinska <elisa.jasinska@ams-ix.net>
-# 2006/11/8
+# Elisa Jasinska <elisa@jasinska.de>
+# 12/16/2014
 #
 
 use Test::More qw(no_plan);

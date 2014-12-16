@@ -2,10 +2,10 @@
 #
 # With many thanks to Tobias Engel for his help and support!
 #
-# $Id$
-#
 # Elisa Jasinska <elisa@jasinska.de>
-# Copyright (c) 2010
+# 
+#
+# Copyright (c) 2006 - 2015 AMS-IX B.V.
 #
 # This package is free software and is provided "as is" without express 
 # or implied warranty.  It may be used, redistributed and/or modified 
@@ -15,11 +15,9 @@
 #
 # sFlow v4 RFC 3176 
 # http://www.ietf.org/rfc/rfc3176.txt
-# Dataformat: http://jasinska.de/sFlow/sFlowV4FormatDiagram/
 #
 # sFlow v5 Memo
 # http://sflow.org/sflow_version_5.txt
-# Dataformat: http://jasinska.de/sFlow/sFlowV5FormatDiagram/
 #
 
 
@@ -101,6 +99,7 @@ use constant ETHERNETCOUNTER_SFLOWv5        => 2;
 use constant TOKENRINGCOUNTER_SFLOWv5       => 3;
 use constant VGCOUNTER_SFLOWv5              => 4;
 use constant VLANCOUNTER_SFLOWv5            => 5;
+use constant LAGCOUNTER_SFLOWv5             => 7;
 use constant PROCESSORCOUNTER_SFLOWv5       => 1001;
 
 # ethernet header constants
@@ -1376,6 +1375,10 @@ sub _decodeCounterRecord {
 
     elsif ($counterTypeFormat == VLANCOUNTER_SFLOWv5) {
       &_decodeCounterVlan(\$offset, $sFlowDatagramPackedRef, $sFlowSample);
+    }
+
+    elsif ($counterTypeFormat == LAGCOUNTER_SFLOWv5) {
+      &_decodeCounterLag(\$offset, $sFlowDatagramPackedRef, $sFlowSample);
     }
 
     elsif ($counterTypeFormat == PROCESSORCOUNTER_SFLOWv5) {
@@ -2853,6 +2856,52 @@ sub _decodeCounterVlan {
 
 
 #############################################################################
+sub _decodeCounterLag {
+#############################################################################
+
+  my $offsetref = shift;
+  my $sFlowDatagramPackedRef = shift;
+  my $sFlowSample = shift;
+
+  my $sFlowDatagramPacked = $$sFlowDatagramPackedRef;
+  my $offset = $$offsetref;
+  my $dot3adAggPortActorSystemID1 = undef;
+  my $dot3adAggPortActorSystemID2 = undef;
+  my $dot3adAggPortPartnerOperSystemID1 = undef;
+  my $dot3adAggPortPartnerOperSystemID2 = undef;
+
+  $sFlowSample->{COUNTERLAG} = 'COUNTERLAG';
+
+  (undef,
+   $dot3adAggPortActorSystemID1,
+   $dot3adAggPortActorSystemID2,
+   $dot3adAggPortPartnerOperSystemID1,
+   $dot3adAggPortPartnerOperSystemID2,
+   $sFlowSample->{dot3adAggPortAttachedAggID},
+   $sFlowSample->{dot3adAggPortActorAdminState},
+   $sFlowSample->{dot3adAggPortActorOperState},
+   $sFlowSample->{dot3adAggPortPartnerAdminState},
+   $sFlowSample->{dot3adAggPortPartnerOperState},
+   $sFlowSample->{dot3adAggPortStatsLACPDUsRx},
+   $sFlowSample->{dot3adAggPortStatsMarkerPDUsRx},
+   $sFlowSample->{dot3adAggPortStatsMarkerResponsePDUsRx},
+   $sFlowSample->{dot3adAggPortStatsUnknownRx},
+   $sFlowSample->{dot3adAggPortStatsIllegalRx},
+   $sFlowSample->{dot3adAggPortStatsLACPDUsTx},
+   $sFlowSample->{dot3adAggPortStatsMarkerPDUsTx},
+   $sFlowSample->{dot3adAggPortStatsMarkerResponsePDUsTx}) =
+    unpack("a$offset N5C4N8", $sFlowDatagramPacked);
+
+  $offset += 56;
+
+  $sFlowSample->{dot3adAggPortActorSystemID} = sprintf("%08x%04x", $dot3adAggPortActorSystemID1, $dot3adAggPortActorSystemID2);
+  $sFlowSample->{dot3adAggPortPartnerOperSystemID} = sprintf("%08x%04x", $dot3adAggPortPartnerOperSystemID1, $dot3adAggPortPartnerOperSystemID2);
+
+  $$offsetref = $offset;
+}
+
+
+#############################################################################
 sub _decodeCounterProcessor {
 #############################################################################
 
@@ -3321,6 +3370,25 @@ Counter vlan:
   broadcastPkts
   discards
 
+Counter lag:
+
+  COUNTERLAG
+  dot3adAggPortActorSystemID
+  dot3adAggPortPartnerOperSystemID
+  dot3adAggPortAttachedAggID
+  dot3adAggPortActorAdminState
+  dot3adAggPortActorOperState
+  dot3adAggPortPartnerAdminState
+  dot3adAggPortPartnerOperState
+  dot3adAggPortStatsLACPDUsRx
+  dot3adAggPortStatsMarkerPDUsRx
+  dot3adAggPortStatsMarkerResponsePDUsRx
+  dot3adAggPortStatsUnknownRx
+  dot3adAggPortStatsIllegalRx
+  dot3adAggPortStatsLACPDUsTx
+  dot3adAggPortStatsMarkerPDUsTx
+  dot3adAggPortStatsMarkerResponsePDUsTx
+
 Counter processor (only in sFlow v5):
 
   COUNTERPROCESSOR
@@ -3354,14 +3422,8 @@ stands: Garbage In / Garbage Out.
 sFlow v4
 http://www.ietf.org/rfc/rfc3176.txt
 
-Format Diagram v4:
-http://jasinska.de/sFlow/sFlowV4FormatDiagram/
-
 sFlow v5
 http://sflow.org/sflow_version_5.txt
-
-Format Diagram v5:
-http://jasinska.de/sFlow/sFlowV5FormatDiagram/
 
 Math::BigInt
 
@@ -3369,19 +3431,19 @@ Math::BigInt
 
 =head1 AUTHOR
 
-Elisa Jasinska <elisa.jasinska@ams-ix.net>
+Elisa Jasinska <elisa@jasinska.de>
 
 
 
 =head1 CONTACT
 
-Please send comments or bug reports to <sflow@ams-ix.net>
+Please send comments or bug reports to <elisa@jasinska.de> and/or <sflow@ams-ix.net>
 
 
 
 =head1 COPYRIGHT
 
-Copyright (c) 2008 AMS-IX B.V.
+Copyright (c) 2006 - 2015 AMS-IX B.V.
 
 This package is free software and is provided "as is" without express
 or implied warranty.  It may be used, redistributed and/or modified

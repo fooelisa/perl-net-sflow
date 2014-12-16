@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:                Net-sFlow
-version:             0.08
+version:             0.12
 abstract:            decode sFlow datagrams
 license:             perl
 generated_by:        ExtUtils::MakeMaker version 6.31
@@ -10,4 +10,4 @@ meta-spec:
     url:     http://module-build.sourceforge.net/META-spec-v1.2.html
     version: 1.2
 author:
-    - Elisa Jasinska <elisa.jasinska@ams-ix.net>
+    - Elisa Jasinska <elisa@jasinska.de>

@@ -2,8 +2,8 @@
 #
 # Makefile.PL for sFlow.pm
 #
-# Elisa Jasinska <elisa.jasinska@ams-ix.net>
-# 2009/01/10
+# Elisa Jasinska <elisa@jasinska.de>
+# 12/16/2014
 #
 
 
@@ -16,7 +16,7 @@ WriteMakefile(
     'ABSTRACT'        => 'decode sFlow datagrams',
     'EXE_FILES'       =>  [ 'examples/sFluxDebug.pl'],
     'INSTALLSCRIPT'   => "/usr/local/bin",
-    'AUTHOR'          => 'Elisa Jasinska <elisa.jasinska@ams-ix.net>',
+    'AUTHOR'          => 'Elisa Jasinska <elisa@jasinska.de>',
     'dist'            => { COMPRESS  =>  'gzip',
                            SUFFIX    =>  'gz'
                          },

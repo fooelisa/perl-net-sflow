@@ -4,13 +4,15 @@
 <head>
 <title>Net::sFlow - decode sFlow datagrams</title>
 <meta http-equiv="content-type" content="text/html; charset=utf-8" />
-<link rev="made" href="mailto:root@localhost" />
+<link rev="made" href="mailto:_locationd@tennine-slave.macports.org" />
 </head>
 
 <body style="background-color: white">
 
-<p><a name="__index__"></a></p>
+
 <!-- INDEX BEGIN -->
+<div name="index">
+<p><a name="__index__"></a></p>
 
 <ul>
 
@@ -34,9 +36,11 @@
 	<li><a href="#contact">CONTACT</a></li>
 	<li><a href="#copyright">COPYRIGHT</a></li>
 </ul>
+
+<hr name="index" />
+</div>
 <!-- INDEX END -->
 
-<hr />
 <p>
 </p>
 <h1><a name="name">NAME</a></h1>
@@ -75,7 +79,7 @@
     print &quot;sFlow version: $sFlowDatagramRef-&gt;{sFlowVersion}\n&quot;;
     print &quot;datagram sequence number: $sFlowDatagramRef-&gt;{datagramSequenceNumber}\n&quot;;</pre>
 <pre>
-    foreach my $sFlowSample (@{$printSamplesRef}) {
+    foreach my $sFlowSample (@{$sFlowSamplesRef}) {
       print &quot;\n&quot;;
       print &quot;---Sample---\n&quot;;
       print &quot;sample sequence number: $sFlowSample-&gt;{sampleSequenceNumber}\n&quot;;
@@ -87,7 +91,7 @@
 <hr />
 <h1><a name="description">DESCRIPTION</a></h1>
 <p>The sFlow module provides a mechanism to parse and decode sFlow
-datagrams. It supports sFlow version 2/4 (RFC 3176 -
+datagrams. It supports sFlow version 2/4 (<a href="http://www.ietf.org/rfc/rfc3176.txt" class="rfc">RFC 3176</a> -
 <a href="http://www.ietf.org/rfc/rfc3176.txt)">http://www.ietf.org/rfc/rfc3176.txt)</a> and sFlow version 5 (Memo -
 <a href="http://sflow.org/sflow_version_5.txt).">http://sflow.org/sflow_version_5.txt).</a></p>
 <p>The module's functionality is provided by a single (exportable)
@@ -108,7 +112,7 @@ and in case of an error a reference to an ARRAY containing the error messages.</
 </p>
 <h3><a name="return_values">Return Values</a></h3>
 <dl>
-<dt><strong><a name="item__datagram"><em>$datagram</em></a></strong></dt>
+<dt><strong><a name="_datagram" class="item"><em>$datagram</em></a></strong></dt>
 
 <dd>
 <p>A HASH reference containing information about the sFlow datagram, with
@@ -124,7 +128,7 @@ the following keys:</p>
 <pre>
   subAgentId</pre>
 </dd>
-<dt><strong><a name="item__samples"><em>$samples</em></a></strong></dt>
+<dt><strong><a name="_samples" class="item"><em>$samples</em></a></strong></dt>
 
 <dd>
 <p>Reference to a list of HASH references, each one representing one
@@ -154,6 +158,10 @@ sample. Depending on the sFlow version and type of hardware where the data comes
   sampleTypeEnterprise
   sampleTypeFormat
   sampleLength</pre>
+<p>If the sample is a Foundry ACL based sample (enterprise == 1991 and format == 1) you will receive the following information:</p>
+<pre>
+  FoundryFlags
+  FoundryGroupID</pre>
 <p>In case of a <em>flowsample</em> (enterprise == 0 and format == 1):</p>
 <pre>
   sampleSequenceNumber
@@ -297,7 +305,7 @@ an <em>expanded countersample</em> (enterprise == 0 and format == 4):</p>
 <p>Mpls tunnel:</p>
 <pre>
   MPLSTUNNEL
-  MplsTunnelLength
+  MplsTunnelNameLength
   MplsTunnelName
   MplsTunnelId
   MplsTunnelCosValue</pre>
@@ -410,6 +418,24 @@ an <em>expanded countersample</em> (enterprise == 0 and format == 4):</p>
   multicastPkts
   broadcastPkts
   discards</pre>
+<p>Counter lag:</p>
+<pre>
+  COUNTERLAG
+  dot3adAggPortActorSystemID
+  dot3adAggPortPartnerOperSystemID
+  dot3adAggPortAttachedAggID
+  dot3adAggPortActorAdminState
+  dot3adAggPortActorOperState
+  dot3adAggPortPartnerAdminState
+  dot3adAggPortPartnerOperState
+  dot3adAggPortStatsLACPDUsRx
+  dot3adAggPortStatsMarkerPDUsRx
+  dot3adAggPortStatsMarkerResponsePDUsRx
+  dot3adAggPortStatsUnknownRx
+  dot3adAggPortStatsIllegalRx
+  dot3adAggPortStatsLACPDUsTx
+  dot3adAggPortStatsMarkerPDUsTx
+  dot3adAggPortStatsMarkerResponsePDUsTx</pre>
 <p>Counter processor (only in sFlow v5):</p>
 <pre>
   COUNTERPROCESSOR
@@ -419,7 +445,7 @@ an <em>expanded countersample</em> (enterprise == 0 and format == 4):</p>
   memoryTotal
   memoryFree</pre>
 </dd>
-<dt><strong><a name="item__error"><em>$error</em></a></strong></dt>
+<dt><strong><a name="_error" class="item"><em>$error</em></a></strong></dt>
 
 <dd>
 <p>Reference to a list of error messages.</p>
@@ -440,29 +466,25 @@ stands: Garbage In / Garbage Out.</p>
 <h1><a name="see_also">SEE ALSO</a></h1>
 <p>sFlow v4
 <a href="http://www.ietf.org/rfc/rfc3176.txt">http://www.ietf.org/rfc/rfc3176.txt</a></p>
-<p>Format Diagram v4:
-<a href="http://jasinska.de/sFlow/sFlowV4FormatDiagram/">http://jasinska.de/sFlow/sFlowV4FormatDiagram/</a></p>
 <p>sFlow v5
 <a href="http://sflow.org/sflow_version_5.txt">http://sflow.org/sflow_version_5.txt</a></p>
-<p>Format Diagram v5:
-<a href="http://jasinska.de/sFlow/sFlowV5FormatDiagram/">http://jasinska.de/sFlow/sFlowV5FormatDiagram/</a></p>
 <p>Math::BigInt</p>
 <p>
 </p>
 <hr />
 <h1><a name="author">AUTHOR</a></h1>
-<p>Elisa Jasinska &lt;<a href="mailto:elisa.jasinska@ams-ix.net">elisa.jasinska@ams-ix.net</a>&gt;</p>
+<p>Elisa Jasinska &lt;<a href="mailto:elisa@jasinska.de">elisa@jasinska.de</a>&gt;</p>
 <p>
 </p>
 <hr />
 <h1><a name="contact">CONTACT</a></h1>
-<p>Please send comments or bug reports to &lt;<a href="mailto:sflow@ams-ix.net">sflow@ams-ix.net</a>&gt;</p>
+<p>Please send comments or bug reports to &lt;<a href="mailto:elisa@jasinska.de">elisa@jasinska.de</a>&gt; and/or &lt;<a href="mailto:sflow@ams-ix.net">sflow@ams-ix.net</a>&gt;</p>
 <p>
 </p>
 <hr />
 <h1><a name="copyright">COPYRIGHT</a></h1>
-<p>Copyright (c) 2008 AMS-IX B.V.</p>
-<p>This package is free software and is provided ``as is'' without express
+<p>Copyright (c) 2006 - 2015 AMS-IX B.V.</p>
+<p>This package is free software and is provided &quot;as is&quot; without express
 or implied warranty.  It may be used, redistributed and/or modified
 under the terms of the Perl Artistic License (see
 <a href="http://www.perl.com/perl/misc/Artistic.html)">http://www.perl.com/perl/misc/Artistic.html)</a></p>
