@@ -3,9 +3,16 @@
 # Makefile.PL for sFlow.pm
 #
 # Elisa Jasinska <elisa@jasinska.de>
-# 12/16/2014
+# 12/19/2014
 #
-
+#
+# Copyright (c) 2006 - 2015 AMS-IX B.V.
+#
+# This package is free software and is provided "as is" without express
+# or implied warranty.  It may be used, redistributed and/or modified
+# under the terms of the Perl Artistic License (see
+# http://www.perl.com/perl/misc/Artistic.html)
+#
 
 use ExtUtils::MakeMaker;
 

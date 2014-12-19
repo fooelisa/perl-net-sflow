@@ -1,12 +1,13 @@
 #!/usr/bin/perl
 #
 # Elisa Jasinska <elisa@jasinska.de>
-# 
-# 
-# Copyright (c) 2006 - 2015 AMS-IX B.V. 
+# 12/19/2014
 #
-# This package is free software and is provided "as is" without express 
-# or implied warranty.  It may be used, redistributed and/or modified 
+#
+# Copyright (c) 2006 - 2015 AMS-IX B.V.
+#
+# This package is free software and is provided "as is" without express
+# or implied warranty.  It may be used, redistributed and/or modified
 # under the terms of the Perl Artistic License (see
 # http://www.perl.com/perl/misc/Artistic.html)
 #
