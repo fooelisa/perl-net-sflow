@@ -391,7 +391,7 @@ sub decode {
 
                 unless ($subProcessed) {
                   push @errors, $error;
-                  pop @sFlowSamples;
+                  pop @sFlowSamples unless $error =~ /rest of the datagram skipped/;
                   return (\%sFlowDatagram, \@sFlowSamples, \@errors);
                 }
 
@@ -411,7 +411,7 @@ sub decode {
 
                 unless ($subProcessed) {
                   push @errors, $error;
-                  pop @sFlowSamples;
+                  pop @sFlowSamples unless $error =~ /rest of the datagram skipped/;
                   return (\%sFlowDatagram, \@sFlowSamples, \@errors);
                 }
   
@@ -430,7 +430,7 @@ sub decode {
 
                 unless ($subProcessed) {
                   push @errors, $error;
-                  pop @sFlowSamples;
+                  pop @sFlowSamples unless $error =~ /rest of the datagram skipped/;
                   return (\%sFlowDatagram, \@sFlowSamples, \@errors);
                 }
 
@@ -450,7 +450,7 @@ sub decode {
 
                 unless ($subProcessed) {
                   push @errors, $error;
-                  pop @sFlowSamples;
+                  pop @sFlowSamples unless $error =~ /rest of the datagram skipped/;
                   return (\%sFlowDatagram, \@sFlowSamples, \@errors);
                 }
   
@@ -684,7 +684,7 @@ sub decode {
 
               unless ($subProcessed) {
                 push @errors, $error;
-                pop @sFlowSamples;
+                pop @sFlowSamples unless $error =~ /rest of the datagram skipped/;
                 return (\%sFlowDatagram, \@sFlowSamples, \@errors);
               }
 
@@ -748,7 +748,7 @@ sub decode {
   
               unless ($subProcessed) {
                 push @errors, $error;
-                pop @sFlowSamples;
+                pop @sFlowSamples unless $error =~ /rest of the datagram skipped/;
                 return (\%sFlowDatagram, \@sFlowSamples, \@errors);
               }
 
@@ -818,7 +818,7 @@ sub decode {
 
               unless ($subProcessed) {
                 push @errors, $error;
-                pop @sFlowSamples;
+                pop @sFlowSamples unless $error =~ /rest of the datagram skipped/;
                 return (\%sFlowDatagram, \@sFlowSamples, \@errors);
               }
   
@@ -880,7 +880,7 @@ sub decode {
 
               unless ($subProcessed) {
                 push @errors, $error;
-                pop @sFlowSamples;
+                pop @sFlowSamples unless $error =~ /rest of the datagram skipped/;
                 return (\%sFlowDatagram, \@sFlowSamples, \@errors);
               }
 
