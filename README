@@ -1,5 +1,5 @@
 
-sFlow 0.12
+sFlow 0.13
 
   A module to decode sFlow datagrams version 2, 3, 4 and 5. 
 
@@ -8,7 +8,7 @@ sFlow 0.12
   equipment and gives complete visibility into network activity, 
   enabling effective management and control of network resources.
 
-  You can find more about sFlow on sflow.org. The datastructure of sFlow 
+  You can find more about sFlow on sflow.org. The data structure of sFlow 
   v.4 is described in RFC 3176 (http://www.ietf.org/rfc/rfc3176.txt) and 
   sFlow v.5 in a memo on sflow.org (http://sflow.org/sflow_version_5.txt). 
 

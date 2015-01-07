@@ -14,7 +14,7 @@
 # http://www.perl.com/perl/misc/Artistic.html)
 #
 #
-# sFlow v4 RFC 3176 
+# sFlow v4 RFC 3176
 # http://www.ietf.org/rfc/rfc3176.txt
 #
 # sFlow v5 Memo
@@ -34,7 +34,7 @@ require Exporter;
 use Math::BigInt;
 
 
-our $VERSION = '0.12';
+our $VERSION = '0.13';
 our @EXPORT_OK = qw(decode);
 
 
@@ -102,6 +102,7 @@ use constant VGCOUNTER_SFLOWv5              => 4;
 use constant VLANCOUNTER_SFLOWv5            => 5;
 use constant LAGCOUNTER_SFLOWv5             => 7;
 use constant PROCESSORCOUNTER_SFLOWv5       => 1001;
+use constant HTTPCOUNTER_SFLOWv5            => 2201;
 
 # ethernet header constants
 
@@ -323,14 +324,14 @@ sub decode {
           }
 
           else {
-  
+
             $error = "ERROR: [sFlow.pm] <sFlowV4:PacketData> AgentIP: $sFlowDatagram{AgentIp}, "
                    . "Datagram: $sFlowDatagram{datagramSequenceNumber} - Unknown packet data type: "
                    . "$sFlowSample{packetDataType} - rest of the datagram skipped";
-  
+
             push @errors, $error;
             pop @sFlowSamples;
-		        return (\%sFlowDatagram, \@sFlowSamples, \@errors);
+            return (\%sFlowDatagram, \@sFlowSamples, \@errors);
           }
 
           (undef,
@@ -380,7 +381,7 @@ sub decode {
 
               # extended data: router
               elsif ($extendedDataType == ROUTERDATA_SFLOWv4) {
-  
+
                 ($subProcessed, $error) =
                   &_decodeRouterData(
                     \$offset,
@@ -415,9 +416,9 @@ sub decode {
                   pop @sFlowSamples unless $error =~ /rest of the datagram skipped/;
                   return (\%sFlowDatagram, \@sFlowSamples, \@errors);
                 }
-  
+
              }
-  
+
               # extended data: user
               elsif ($extendedDataType == USERDATA_SFLOWv4) {
 
@@ -427,7 +428,7 @@ sub decode {
                     \$sFlowDatagramPacked,
                     \%sFlowDatagram,
                     \%sFlowSample,
-                  );  
+                  );
 
                 unless ($subProcessed) {
                   push @errors, $error;
@@ -454,22 +455,22 @@ sub decode {
                   pop @sFlowSamples unless $error =~ /rest of the datagram skipped/;
                   return (\%sFlowDatagram, \@sFlowSamples, \@errors);
                 }
-  
+
               }
 
               else {
-  
+
                 $error = "ERROR: [sFlow.pm] <sFlowV4:ExtendedData> AgentIP: $sFlowDatagram{AgentIp}, "
                        . "Datagram: $sFlowDatagram{datagramSequenceNumber} - Unknown extended data type: "
                        . "$extendedDataType - rest of the datagram skipped";
-    
+
                 push @errors, $error;
                 pop @sFlowSamples;
-		            return (\%sFlowDatagram, \@sFlowSamples, \@errors);
+                return (\%sFlowDatagram, \@sFlowSamples, \@errors);
               }
-  
+
             }
-  
+
           }
 
         }
@@ -487,7 +488,7 @@ sub decode {
             unpack("a$offset N4", $sFlowDatagramPacked);
 
           $offset += 16;
-      
+
           $sFlowSample{sourceIdType} = $sourceId >> 24;
           $sFlowSample{sourceIdIndex} = $sourceId & 2 ** 24 - 1;
 
@@ -523,21 +524,21 @@ sub decode {
           elsif ($sFlowSample{countersVersion} == WANCOUNTER_SFLOWv4) {
             &_decodeCounterGeneric(\$offset, \$sFlowDatagramPacked, \%sFlowSample);
           }
-  
+
           # counterstype: vlan
           elsif ($sFlowSample{countersVersion} == VLANCOUNTER_SFLOWv4) {
             &_decodeCounterVlan(\$offset, \$sFlowDatagramPacked, \%sFlowSample);
           }
 
           else {
-  
+
             $error = "ERROR: [sFlow.pm] <sFlowV4:CountersType> AgentIP: $sFlowDatagram{AgentIp}, "
                    . "Datagram: $sFlowDatagram{datagramSequenceNumber} - Unknown counters type: "
                    . "$sFlowSample{countersVersion} - rest of the datagram skipped";
-  
+
             push @errors, $error;
             pop @sFlowSamples;
-		        return (\%sFlowDatagram, \@sFlowSamples, \@errors);
+            return (\%sFlowDatagram, \@sFlowSamples, \@errors);
           }
 
         }
@@ -550,7 +551,7 @@ sub decode {
 
           push @errors, $error;
           pop @sFlowSamples;
-		      return (\%sFlowDatagram, \@sFlowSamples, \@errors);
+          return (\%sFlowDatagram, \@sFlowSamples, \@errors);
         }
 
       }
@@ -697,7 +698,7 @@ sub decode {
 
         elsif ($sFlowSample{sampleTypeEnterprise} == 0
                and $sFlowSample{sampleTypeFormat} == COUNTERSAMPLE_SFLOWv5) {
-  
+
           (undef,
            $sFlowSample{sampleSequenceNumber},
            $sourceId,
@@ -746,7 +747,7 @@ sub decode {
                   \%sFlowSample,
                   \@sFlowSamples,
                 );
-  
+
               unless ($subProcessed) {
                 push @errors, $error;
                 pop @sFlowSamples unless $error =~ /rest of the datagram skipped/;
@@ -761,7 +762,7 @@ sub decode {
 
         elsif ($sFlowSample{sampleTypeEnterprise} == 0
                and $sFlowSample{sampleTypeFormat} == EXPANDEDFLOWSAMPLE_SFLOWv5) {
-        
+
           (undef,
            $sFlowSample{sampleSequenceNumber},
            $sFlowSample{sourceIdType},
@@ -822,9 +823,9 @@ sub decode {
                 pop @sFlowSamples unless $error =~ /rest of the datagram skipped/;
                 return (\%sFlowDatagram, \@sFlowSamples, \@errors);
               }
-  
+
             }
-  
+
           }
 
         }
@@ -840,7 +841,7 @@ sub decode {
             unpack("a$offset N4", $sFlowDatagramPacked);
 
           $offset += 16;
-  
+
           # boundcheck for $sFlowSample{counterRecordsCount}
           # $sFlowSample{counterRecordsCount} * 4
           # cannot be longer than the number of $sFlowDatagramPacked byte - $offset
@@ -912,11 +913,11 @@ sub decode {
                  . "$sFlowDatagram{datagramSequenceNumber} - Unknown sample enterprise: "
                  . "$sFlowSample{sampleTypeEnterprise} or format: $sFlowSample{sampleTypeFormat} "
                  . "- rest of the datagram skipped";
-  
+
           push @errors, $error;
           pop @sFlowSamples;
-		      return (\%sFlowDatagram, \@sFlowSamples, \@errors);
-        } 
+          return (\%sFlowDatagram, \@sFlowSamples, \@errors);
+        }
 
       }
 
@@ -932,9 +933,9 @@ sub decode {
 
     push @errors, $error;
     %sFlowDatagram = ();
-		return (\%sFlowDatagram, \@sFlowSamples, \@errors);
+    return (\%sFlowDatagram, \@sFlowSamples, \@errors);
   }
-  
+
   return (\%sFlowDatagram, \@sFlowSamples, \@errors);
 
 }
@@ -1027,7 +1028,7 @@ sub _decodeIpAddress {
 
     if (defined($DatagramOrSampleData)) {
 
-      # unknown ip version added in v5 
+      # unknown ip version added in v5
       if ($IpVersion == UNKNOWNIPVERSION) {
 
         $error = "ERROR: [sFlow.pm] AgentIP: Unknown agent ip version: "
@@ -1048,7 +1049,7 @@ sub _decodeIpAddress {
 
     else {
 
-      # unknown ip version added in v5 
+      # unknown ip version added in v5
       if ($IpVersion == UNKNOWNIPVERSION) {
 
         $error = "ERROR: [sFlow.pm] AgentIP: $sFlowDatagram->{AgentIp}, "
@@ -1058,7 +1059,7 @@ sub _decodeIpAddress {
 
         return (undef, $error);
       }
-    
+
       else {
         $error = "ERROR: [sFlow.pm] AgentIP: $sFlowDatagram->{AgentIp}, "
                . "Datagram: $sFlowDatagram->{datagramSequenceNumber}, Sample: "
@@ -1178,9 +1179,9 @@ sub _decodeFlowRecord {
 
       ($subProcessed, $error) =
         &_decodeUserData(
-          \$offset, 
-          $sFlowDatagramPackedRef, 
-          $sFlowDatagram, 
+          \$offset,
+          $sFlowDatagramPackedRef,
+          $sFlowDatagram,
           $sFlowSample
         );
 
@@ -1194,9 +1195,9 @@ sub _decodeFlowRecord {
 
       ($subProcessed, $error) =
         &_decodeUrlData(
-          \$offset, 
-          $sFlowDatagramPackedRef, 
-          $sFlowDatagram, 
+          \$offset,
+          $sFlowDatagramPackedRef,
+          $sFlowDatagram,
           $sFlowSample
         );
 
@@ -1244,8 +1245,8 @@ sub _decodeFlowRecord {
 
       ($subProcessed, $error) =
         &_decodeMplsTunnel(
-          \$offset, 
-          $sFlowDatagramPackedRef, 
+          \$offset,
+          $sFlowDatagramPackedRef,
           $sFlowSample
         );
 
@@ -1259,8 +1260,8 @@ sub _decodeFlowRecord {
 
       ($subProcessed, $error) =
         &_decodeMplsVc(
-          \$offset, 
-          $sFlowDatagramPackedRef, 
+          \$offset,
+          $sFlowDatagramPackedRef,
           $sFlowSample
         );
 
@@ -1274,8 +1275,8 @@ sub _decodeFlowRecord {
 
       ($subProcessed, $error) =
         &_decodeMplsFec(
-          \$offset, 
-          $sFlowDatagramPackedRef, 
+          \$offset,
+          $sFlowDatagramPackedRef,
           $sFlowSample
         );
 
@@ -1293,8 +1294,8 @@ sub _decodeFlowRecord {
 
       ($subProcessed, $error) =
         &_decodeVlanTunnel(
-          \$offset, 
-          $sFlowDatagramPackedRef, 
+          \$offset,
+          $sFlowDatagramPackedRef,
           $sFlowSample
         );
 
@@ -1311,7 +1312,7 @@ sub _decodeFlowRecord {
              . "$sFlowSample->{sampleSequenceNumber} - Unknown Flowdata format: "
              . "$flowTypeFormat - rest of the datagram skipped";
 
-		  return (undef, $error);
+          return (undef, $error);
     }
 
   }
@@ -1322,7 +1323,7 @@ sub _decodeFlowRecord {
            . "Datagram: $sFlowDatagram->{datagramSequenceNumber} - Unknown Flowdata enterprise: "
            . "$flowTypeEnterprise - rest of the datagram skipped";
 
-		return (undef, $error);
+        return (undef, $error);
   }
 
   $$offsetref = $offset;
@@ -1386,12 +1387,16 @@ sub _decodeCounterRecord {
       &_decodeCounterProcessor(\$offset, $sFlowDatagramPackedRef, $sFlowSample);
     }
 
+    elsif ($counterTypeFormat == HTTPCOUNTER_SFLOWv5) {
+      &_decodeCounterHTTP(\$offset, $sFlowDatagramPackedRef, $sFlowSample);
+    }
+
     else {
 
       $error = "ERROR: [sFlow.pm] <sFlowV5:CounterData> AgentIP: $sFlowDatagram->{AgentIp}, "
              . "Datagram: $sFlowDatagram->{datagramSequenceNumber} - Unknown counter data format: "
              . "$counterTypeFormat - rest of the datagram skipped";
-		  return (undef, $error);
+      return (undef, $error);
     }
 
   }
@@ -1402,7 +1407,7 @@ sub _decodeCounterRecord {
            . "Datagram: $sFlowDatagram->{datagramSequenceNumber} - Unknown counter data enterprise: "
            . "$counterTypeEnterprise - rest of the datagram skipped";
 
-	  return (undef, $error);
+      return (undef, $error);
   }
 
   $$offsetref = $offset;
@@ -1536,7 +1541,7 @@ sub _decodeHeaderData {
       $sFlowSample->{HeaderDatalen} = 64;
     }
 
-  } 
+  }
 
   $$offsetref = $offset;
   return (1, undef);
@@ -1790,15 +1795,15 @@ sub _decodeGatewayData {
              . "- rest of the datagram skipped";
 
     return (undef, $error);
- 
+
   } elsif ($sFlowSample->{GatewayDestAsPathsCount} < 0) {
- 
+
     # error $sFlowSample->{GatewayDestAsPaths} too small
     $error = "ERROR: [sFlow.pm] GatewayDestAsPaths: Gateway destination AS paths count too small "
              . "- rest of the datagram skipped";
 
     return (undef, $error);
-  
+
   } else {
 
     # array containing the single paths
@@ -1897,7 +1902,7 @@ sub _decodeGatewayData {
                . "- rest of the datagram skipped";
 
       return (undef, $error);
-    
+
     # $sFlowSample->{GatewayLengthCommunitiesList} might very well be 0
     } elsif ($sFlowSample->{GatewayLengthCommunitiesList} < 0) {
 
@@ -2221,8 +2226,8 @@ sub _decodeMplsData {
 
   }
 
-  (undef, 
-   $sFlowSample->{MplsOutLabelStackCount}) = 
+  (undef,
+   $sFlowSample->{MplsOutLabelStackCount}) =
     unpack("a$offset N", $sFlowDatagramPacked);
 
   $offset += 4;
@@ -2566,7 +2571,7 @@ sub _decodeVlanTunnel {
   # $sFlowSample->{VlanTunnelLayerStackCount} * 4
   # cannot be longer than the number of $sFlowDatagramPacked byte - $offset
 
-  if (length($sFlowDatagramPacked) - $offset < 
+  if (length($sFlowDatagramPacked) - $offset <
     $sFlowSample->{VlanTunnelLayerStackCount} * 4) {
 
     # error $sFlowSample->{VlanTunnelLayerStackCount} too big
@@ -2901,6 +2906,39 @@ sub _decodeCounterLag {
   $$offsetref = $offset;
 }
 
+#############################################################################
+sub _decodeCounterHTTP {
+#############################################################################
+
+  my $offsetref = shift;
+  my $sFlowDatagramPackedRef = shift;
+  my $sFlowSample = shift;
+
+  my $offset = $$offsetref;
+
+  $sFlowSample->{COUNTERHTTP} = 'COUNTERHTTP';
+  (undef,
+   $sFlowSample->{methodOptionCount},
+   $sFlowSample->{methodGetCount},
+   $sFlowSample->{methodHeadCount},
+   $sFlowSample->{methodPostCount},
+   $sFlowSample->{methodPutCount},
+   $sFlowSample->{methodDeleteCount},
+   $sFlowSample->{methodTraceCount},
+   $sFlowSample->{methodConnectCount},
+   $sFlowSample->{methodOtherCount},
+   $sFlowSample->{status1xxCount},
+   $sFlowSample->{status2xxCount},
+   $sFlowSample->{status3xxCount},
+   $sFlowSample->{status4xxCount},
+   $sFlowSample->{status5xxCount},
+   $sFlowSample->{statusOtherCount},
+  ) = unpack("a$offset N15", $$sFlowDatagramPackedRef);
+
+  $offset += 60;
+  $$offsetref = $offset;
+}
+
 
 #############################################################################
 sub _decodeCounterProcessor {
@@ -2959,7 +2997,7 @@ Net::sFlow - decode sFlow datagrams
 
   use Net::sFlow;
   use IO::Socket::INET;
-  
+
   my $sock = IO::Socket::INET->new( LocalPort => '6343',
                                     Proto     => 'udp')
                                or die "Can't bind : $@\n";
@@ -3399,6 +3437,24 @@ Counter processor (only in sFlow v5):
   memoryTotal
   memoryFree
 
+Counter HTTP:
+
+  COUNTERHTTP
+  methodOptionCount
+  methodGetCount
+  methodHeadCount
+  methodPostCount
+  methodPutCount
+  methodDeleteCount
+  methodTraceCount
+  methodConnectCount
+  methodOtherCount
+  status1xxCount
+  status2xxCount
+  status3xxCount
+  status4xxCount
+  status5xxCount
+  statusOtherCount
 
 =item I<$error>
 
@@ -3453,3 +3509,12 @@ http://www.perl.com/perl/misc/Artistic.html)
 
 =cut
 
+# Local Variables: ***
+# mode:CPerl ***
+# cperl-indent-level:2 ***
+# perl-indent-level:2 ***
+# tab-width: 2 ***
+# indent-tabs-mode: nil ***
+# End: ***
+#
+# vim: ts=2 sw=2 expandtab
