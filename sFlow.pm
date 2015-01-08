@@ -1568,15 +1568,13 @@ sub _decodeEthernetFrameData {
 
   (undef,
    $sFlowSample->{EtherMacPacketlength},
-   $EtherSrcMac1,
-   $EtherSrcMac2,
-   $EtherDestMac1,
-   $EtherDestMac2,
+   $sFlowSample->{EtherSrcMac},
+   $sFlowSample->{EtherDestMac},
    $sFlowSample->{EtherPackettype}) =
-    unpack("a$offset N6", $sFlowDatagramPacked);
+    unpack("a$offset N(a8)2N", $sFlowDatagramPacked);
 
-  $sFlowSample->{EtherSrcMac} = sprintf("%08x%04x", $EtherSrcMac1, $EtherSrcMac2);
-  $sFlowSample->{EtherDestMac} = sprintf("%08x%04x", $EtherDestMac1, $EtherDestMac2);
+  # format MAC addresses as hex (ignore final 2 padding bytes)
+  map { $_ = unpack 'H12' } ( @{$sFlowSample}{qw{EtherSrcMac EtherDestMac}} );
 
   $offset += 24;
   $$offsetref = $offset;
@@ -2879,10 +2877,8 @@ sub _decodeCounterLag {
   $sFlowSample->{COUNTERLAG} = 'COUNTERLAG';
 
   (undef,
-   $dot3adAggPortActorSystemID1,
-   $dot3adAggPortActorSystemID2,
-   $dot3adAggPortPartnerOperSystemID1,
-   $dot3adAggPortPartnerOperSystemID2,
+   $sFlowSample->{dot3adAggPortActorSystemID},
+   $sFlowSample->{dot3adAggPortPartnerOperSystemID},
    $sFlowSample->{dot3adAggPortAttachedAggID},
    $sFlowSample->{dot3adAggPortActorAdminState},
    $sFlowSample->{dot3adAggPortActorOperState},
@@ -2896,12 +2892,12 @@ sub _decodeCounterLag {
    $sFlowSample->{dot3adAggPortStatsLACPDUsTx},
    $sFlowSample->{dot3adAggPortStatsMarkerPDUsTx},
    $sFlowSample->{dot3adAggPortStatsMarkerResponsePDUsTx}) =
-    unpack("a$offset N5C4N8", $sFlowDatagramPacked);
+    unpack("a$offset (a8)2NC4N8", $sFlowDatagramPacked);
 
   $offset += 56;
 
-  $sFlowSample->{dot3adAggPortActorSystemID} = sprintf("%08x%04x", $dot3adAggPortActorSystemID1, $dot3adAggPortActorSystemID2);
-  $sFlowSample->{dot3adAggPortPartnerOperSystemID} = sprintf("%08x%04x", $dot3adAggPortPartnerOperSystemID1, $dot3adAggPortPartnerOperSystemID2);
+  # format MAC addresses as hex (ignore final 2 padding bytes)
+  map { $_ = unpack 'H12' } ( @{$sFlowSample}{qw{dot3adAggPortActorSystemID dot3adAggPortPartnerOperSystemID}} );
 
   $$offsetref = $offset;
 }
