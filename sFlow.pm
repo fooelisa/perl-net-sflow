@@ -29,14 +29,26 @@ use strict;
 use warnings;
 use bytes;
 
-require Exporter;
-# 64bit integers
-use Math::BigInt;
+use Exporter 'import';
+our $VERSION;
+our @EXPORT_OK;
+BEGIN {
+	$VERSION   = '0.13';
+	@EXPORT_OK = qw(decode);
+}
 
-
-our $VERSION = '0.13';
-our @EXPORT_OK = qw(decode);
-
+# 64-bit integers
+my $have_quad;
+my $Q;
+BEGIN {
+  eval {# die "no quad"; # uncomment to test BigInt version on 64bit systems.
+        $have_quad = pack( 'Q', 1 ); $Q = 'Q>'};
+  if ($@) {
+    require Math::BigInt;
+    $have_quad = 0;
+    $Q = '(a8)';
+  }
+}
 
 # constants
 
@@ -1559,10 +1571,6 @@ sub _decodeEthernetFrameData {
 
   my $sFlowDatagramPacked = $$sFlowDatagramPackedRef;
   my $offset = $$offsetref;
-  my $EtherSrcMac1 = undef;
-  my $EtherSrcMac2 = undef;
-  my $EtherDestMac1 = undef;
-  my $EtherDestMac2 = undef;
 
   $sFlowSample->{ETHERNETFRAMEDATA} = 'ETHERNETFRAMEDATA';
 
@@ -1571,7 +1579,7 @@ sub _decodeEthernetFrameData {
    $sFlowSample->{EtherSrcMac},
    $sFlowSample->{EtherDestMac},
    $sFlowSample->{EtherPackettype}) =
-    unpack("a$offset N(a8)2N", $sFlowDatagramPacked);
+    unpack("a$offset N(a6x2)2N", $sFlowDatagramPacked);
 
   # format MAC addresses as hex (ignore final 2 padding bytes)
   map { $_ = unpack 'H12' } ( @{$sFlowSample}{qw{EtherSrcMac EtherDestMac}} );
@@ -2616,12 +2624,6 @@ sub _decodeCounterGeneric {
 
   my $sFlowDatagramPacked = $$sFlowDatagramPackedRef;
   my $offset = $$offsetref;
-  my $ifSpeed1 = undef;
-  my $ifSpeed2 = undef;
-  my $ifInOctets1 = undef;
-  my $ifInOctets2 = undef;
-  my $ifOutOctets1 = undef;
-  my $ifOutOctets2 = undef;
   my $ifStatus = undef;
 
   $sFlowSample->{COUNTERGENERIC} = 'COUNTERGENERIC';
@@ -2629,41 +2631,38 @@ sub _decodeCounterGeneric {
   (undef,
    $sFlowSample->{ifIndex},
    $sFlowSample->{ifType},
-   $ifSpeed1,
-   $ifSpeed2,
+   $sFlowSample->{ifSpeed},     # $Q
    $sFlowSample->{ifDirection},
    $ifStatus,
-   $ifInOctets1,
-   $ifInOctets2,
+   $sFlowSample->{ifInOctets},  # $Q
    $sFlowSample->{ifInUcastPkts},
    $sFlowSample->{ifInMulticastPkts},
    $sFlowSample->{ifInBroadcastPkts},
    $sFlowSample->{ifInDiscards},
    $sFlowSample->{ifInErrors},
    $sFlowSample->{ifInUnknownProtos},
-   $ifOutOctets1,
-   $ifOutOctets2,
+   $sFlowSample->{ifOutOctets}, # $Q
    $sFlowSample->{ifOutUcastPkts},
    $sFlowSample->{ifOutMulticastPkts},
    $sFlowSample->{ifOutBroadcastPkts},
    $sFlowSample->{ifOutDiscards},
    $sFlowSample->{ifOutErrors},
    $sFlowSample->{ifPromiscuousMode}) =
-    unpack("a$offset N22", $sFlowDatagramPacked);
+    unpack("a$offset N2${Q}N2${Q}N6${Q}N6", $sFlowDatagramPacked);
 
   $offset += 88;
 
-  $sFlowSample->{ifSpeed} = Math::BigInt->new("$ifSpeed1");
-  $sFlowSample->{ifSpeed} = $sFlowSample->{ifSpeed} << 32;
-  $sFlowSample->{ifSpeed} += $ifSpeed2;
+  unless ($have_quad) {
+    my $hex_val;
+    $hex_val = unpack('H*', $sFlowSample->{ifSpeed});
+    $sFlowSample->{ifSpeed} =  Math::BigInt->from_hex("0x$hex_val");
 
-  $sFlowSample->{ifInOctets} = Math::BigInt->new("$ifInOctets1");
-  $sFlowSample->{ifInOctets} = $sFlowSample->{ifInOctets} << 32;
-  $sFlowSample->{ifInOctets} += $ifInOctets2;
+    $hex_val = unpack('H*', $sFlowSample->{ifInOctets});
+    $sFlowSample->{ifInOctets} =  Math::BigInt->from_hex("0x$hex_val");
 
-  $sFlowSample->{ifOutOctets} = Math::BigInt->new("$ifOutOctets1");
-  $sFlowSample->{ifOutOctets} = $sFlowSample->{ifOutOctets} << 32;
-  $sFlowSample->{ifOutOctets} += $ifOutOctets2;
+    $hex_val = unpack('H*', $sFlowSample->{ifOutOctets});
+    $sFlowSample->{ifOutOctets} =  Math::BigInt->from_hex("0x$hex_val");
+  }
 
   # seperate the 32bit status
   $sFlowSample->{ifAdminStatus} = $ifStatus & 0x1;
@@ -2756,69 +2755,55 @@ sub _decodeCounterVg {
 
   my $sFlowDatagramPacked = $$sFlowDatagramPackedRef;
   my $offset = $$offsetref;
-  my $dot12InHighPriorityOctets1 = undef;
-  my $dot12InHighPriorityOctets2 = undef;
-  my $dot12InNormPriorityOctets1 = undef;
-  my $dot12InNormPriorityOctets2 = undef;
-  my $dot12OutHighPriorityOctets1 = undef;
-  my $dot12OutHighPriorityOctets2 = undef;
-  my $dot12HCInHighPriorityOctets1 = undef;
-  my $dot12HCInHighPriorityOctets2 = undef;
-  my $dot12HCInNormPriorityOctets1 = undef;
-  my $dot12HCInNormPriorityOctets2 = undef;
-  my $dot12HCOutHighPriorityOctets1 = undef;
-  my $dot12HCOutHighPriorityOctets2 = undef;
 
   $sFlowSample->{COUNTERVG} = 'COUNTERVG';
 
   (undef,
    $sFlowSample->{dot12InHighPriorityFrames},
-   $dot12InHighPriorityOctets1,
-   $dot12InHighPriorityOctets2,
+   $sFlowSample->{dot12InHighPriorityOctets}, # $Q
    $sFlowSample->{dot12InNormPriorityFrames},
-   $dot12InNormPriorityOctets1,
-   $dot12InNormPriorityOctets2,
+   $sFlowSample->{dot12InNormPriorityOctets}, # $Q
    $sFlowSample->{dot12InIPMErrors},
    $sFlowSample->{dot12InOversizeFrameErrors},
    $sFlowSample->{dot12InDataErrors},
    $sFlowSample->{dot12InNullAddressedFrames},
    $sFlowSample->{dot12OutHighPriorityFrames},
-   $dot12OutHighPriorityOctets1,
-   $dot12OutHighPriorityOctets2,
+   $sFlowSample->{dot12OutHighPriorityOctets}, # $Q
    $sFlowSample->{dot12TransitionIntoTrainings},
-   $dot12HCInHighPriorityOctets1,
-   $dot12HCInHighPriorityOctets2,
-   $dot12HCInNormPriorityOctets1,
-   $dot12HCInNormPriorityOctets2,
-   $dot12HCOutHighPriorityOctets1,
-   $dot12HCOutHighPriorityOctets2) =
-    unpack("a$offset N20", $sFlowDatagramPacked);
+   $sFlowSample->{dot12HCInHighPriorityOctets},  # $Q
+   $sFlowSample->{dot12HCInNormPriorityOctets},  # $Q
+   $sFlowSample->{dot12HCOutHighPriorityOctets}, # $Q
+  ) =
+    unpack("a$offset N${Q}N${Q}N5${Q}N${Q}3", $sFlowDatagramPacked);
 
   $offset += 80;
 
-  $sFlowSample->{dot12InHighPriorityOctets} = Math::BigInt->new("$dot12InHighPriorityOctets1");
-  $sFlowSample->{dot12InHighPriorityOctets} = $sFlowSample->{dot12InHighPriorityOctets} << 32;
-  $sFlowSample->{dot12InHighPriorityOctets} += $dot12InHighPriorityOctets2;
+  unless ($have_quad) {
+    my $hex_val;
+    $hex_val = unpack( 'H*', $sFlowSample->{dot12InHighPriorityOctets} );
+    $sFlowSample->{dot12InHighPriorityOctets}
+      = Math::BigInt->from_hex("0x$hex_val");
 
-  $sFlowSample->{dot12InNormPriorityOctets} = Math::BigInt->new("$dot12InNormPriorityOctets1");
-  $sFlowSample->{dot12InNormPriorityOctets} = $sFlowSample->{dot12InNormPriorityOctets} << 32;
-  $sFlowSample->{dot12InNormPriorityOctets} += $dot12InNormPriorityOctets2;
+    $hex_val = unpack( 'H*', $sFlowSample->{dot12InNormPriorityOctets} );
+    $sFlowSample->{dot12InNormPriorityOctets}
+      = Math::BigInt->from_hex("0x$hex_val");
 
-  $sFlowSample->{dot12OutHighPriorityOctets} = Math::BigInt->new("$dot12OutHighPriorityOctets1");
-  $sFlowSample->{dot12OutHighPriorityOctets} = $sFlowSample->{dot12OutHighPriorityOctets} << 32;
-  $sFlowSample->{dot12OutHighPriorityOctets} += $dot12OutHighPriorityOctets2;
+    $hex_val = unpack( 'H*', $sFlowSample->{dot12OutHighPriorityOctets} );
+    $sFlowSample->{dot12OutHighPriorityOctets}
+      = Math::BigInt->from_hex("0x$hex_val");
 
-  $sFlowSample->{dot12HCInHighPriorityOctets} = Math::BigInt->new("$dot12HCInHighPriorityOctets1");
-  $sFlowSample->{dot12HCInHighPriorityOctets} = $sFlowSample->{dot12HCInHighPriorityOctets} << 32;
-  $sFlowSample->{dot12HCInHighPriorityOctets} += $dot12HCInHighPriorityOctets2;
+    $hex_val = unpack( 'H*', $sFlowSample->{dot12HCInHighPriorityOctets} );
+    $sFlowSample->{dot12HCInHighPriorityOctets}
+      = Math::BigInt->from_hex("0x$hex_val");
 
-  $sFlowSample->{dot12HCInNormPriorityOctets} = Math::BigInt->new("$dot12HCInNormPriorityOctets1");
-  $sFlowSample->{dot12HCInNormPriorityOctets} = $sFlowSample->{dot12HCInNormPriorityOctets} << 32;
-  $sFlowSample->{dot12HCInNormPriorityOctets} += $dot12HCInNormPriorityOctets2;
+    $hex_val = unpack( 'H*', $sFlowSample->{dot12HCInNormPriorityOctets} );
+    $sFlowSample->{dot12HCInNormPriorityOctets}
+      = Math::BigInt->from_hex("0x$hex_val");
 
-  $sFlowSample->{dot12HCOutHighPriorityOctets} = Math::BigInt->new("$dot12HCOutHighPriorityOctets1");
-  $sFlowSample->{dot12HCOutHighPriorityOctets} = $sFlowSample->{dot12HCOutHighPriorityOctets} << 32;
-  $sFlowSample->{dot12HCOutHighPriorityOctets} += $dot12HCOutHighPriorityOctets2;
+    $hex_val = unpack( 'H*', $sFlowSample->{dot12HCOutHighPriorityOctets} );
+    $sFlowSample->{dot12HCOutHighPriorityOctets}
+      = Math::BigInt->from_hex("0x$hex_val");
+  }
 
   $$offsetref = $offset;
 }
@@ -2834,27 +2819,25 @@ sub _decodeCounterVlan {
 
   my $sFlowDatagramPacked = $$sFlowDatagramPackedRef;
   my $offset = $$offsetref;
-  my $octets1 = undef;
-  my $octets2 = undef;
 
   $sFlowSample->{COUNTERVLAN} = 'COUNTERVLAN';
 
   (undef,
    $sFlowSample->{vlan_id},
-   $octets1,
-   $octets2,
+   $sFlowSample->{octets},      # $Q
    $sFlowSample->{ucastPkts},
    $sFlowSample->{multicastPkts},
    $sFlowSample->{broadcastPkts},
    $sFlowSample->{discards}) =
-    unpack("a$offset N7", $sFlowDatagramPacked);
+    unpack("a$offset N${Q}N4", $sFlowDatagramPacked);
 
   $offset += 28;
 
-  $sFlowSample->{octets} = Math::BigInt->new("$octets1");
-  $sFlowSample->{octets} = $sFlowSample->{octets} << 32;
-  $sFlowSample->{octets} += $octets2;
-
+  unless ($have_quad) {
+    my $hex_val;
+    $hex_val = unpack( 'H*', $sFlowSample->{octets} );
+    $sFlowSample->{octets} = Math::BigInt->from_hex("0x$hex_val");
+  }
   $$offsetref = $offset;
 }
 
@@ -2869,10 +2852,6 @@ sub _decodeCounterLag {
 
   my $sFlowDatagramPacked = $$sFlowDatagramPackedRef;
   my $offset = $$offsetref;
-  my $dot3adAggPortActorSystemID1 = undef;
-  my $dot3adAggPortActorSystemID2 = undef;
-  my $dot3adAggPortPartnerOperSystemID1 = undef;
-  my $dot3adAggPortPartnerOperSystemID2 = undef;
 
   $sFlowSample->{COUNTERLAG} = 'COUNTERLAG';
 
@@ -2892,7 +2871,7 @@ sub _decodeCounterLag {
    $sFlowSample->{dot3adAggPortStatsLACPDUsTx},
    $sFlowSample->{dot3adAggPortStatsMarkerPDUsTx},
    $sFlowSample->{dot3adAggPortStatsMarkerResponsePDUsTx}) =
-    unpack("a$offset (a8)2NC4N8", $sFlowDatagramPacked);
+    unpack("a$offset (a6x2)2NC4N8", $sFlowDatagramPacked);
 
   $offset += 56;
 
@@ -2957,21 +2936,21 @@ sub _decodeCounterProcessor {
    $sFlowSample->{cpu5s},
    $sFlowSample->{cpu1m},
    $sFlowSample->{cpu5m},
-   $memoryTotal1,
-   $memoryTotal2,
-   $memoryFree1,
-   $memoryFree2) =
-    unpack("a$offset N7", $sFlowDatagramPacked);
+   $sFlowSample->{memoryTotal}, # $Q
+   $sFlowSample->{memoryFree},  # $Q
+   ) =
+    unpack("a$offset N3${Q}2", $sFlowDatagramPacked);
 
   $offset += 28;
 
-  $sFlowSample->{memoryTotal} = Math::BigInt->new("$memoryTotal1");
-  $sFlowSample->{memoryTotal} = $sFlowSample->{memoryTotal} << 32;
-  $sFlowSample->{memoryTotal} += $memoryTotal2;
+  unless ($have_quad) {
+    my $hex_val;
+    $hex_val = unpack( 'H*', $sFlowSample->{memoryTotal} );
+    $sFlowSample->{memoryTotal} = Math::BigInt->from_hex("0x$hex_val");
 
-  $sFlowSample->{memoryFree} = Math::BigInt->new("$memoryFree1");
-  $sFlowSample->{memoryFree} = $sFlowSample->{memoryFree} << 32;
-  $sFlowSample->{memoryFree} += $memoryFree2;
+    $hex_val = unpack( 'H*', $sFlowSample->{memoryFree} );
+    $sFlowSample->{memoryFree} = Math::BigInt->from_hex("0x$hex_val");
+  }
 
   $$offsetref = $offset;
 }
