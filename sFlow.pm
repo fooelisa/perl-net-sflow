@@ -14,7 +14,7 @@
 # http://www.perl.com/perl/misc/Artistic.html)
 #
 #
-# sFlow v4 RFC 3176 
+# sFlow v4 RFC 3176
 # http://www.ietf.org/rfc/rfc3176.txt
 #
 # sFlow v5 Memo
@@ -29,14 +29,26 @@ use strict;
 use warnings;
 use bytes;
 
-require Exporter;
-# 64bit integers
-use Math::BigInt;
+use Exporter 'import';
+our $VERSION;
+our @EXPORT_OK;
+BEGIN {
+	$VERSION   = '0.13';
+	@EXPORT_OK = qw(decode);
+}
 
-
-our $VERSION = '0.12';
-our @EXPORT_OK = qw(decode);
-
+# 64-bit integers
+my $have_quad;
+my $Q;
+BEGIN {
+  eval {# die "no quad"; # uncomment to test BigInt version on 64bit systems.
+        $have_quad = pack( 'Q', 1 ); $Q = 'Q>'};
+  if ($@) {
+    require Math::BigInt;
+    $have_quad = 0;
+    $Q = '(a8)';
+  }
+}
 
 # constants
 
@@ -102,6 +114,7 @@ use constant VGCOUNTER_SFLOWv5              => 4;
 use constant VLANCOUNTER_SFLOWv5            => 5;
 use constant LAGCOUNTER_SFLOWv5             => 7;
 use constant PROCESSORCOUNTER_SFLOWv5       => 1001;
+use constant HTTPCOUNTER_SFLOWv5            => 2201;
 
 # ethernet header constants
 
@@ -323,14 +336,14 @@ sub decode {
           }
 
           else {
-  
+
             $error = "ERROR: [sFlow.pm] <sFlowV4:PacketData> AgentIP: $sFlowDatagram{AgentIp}, "
                    . "Datagram: $sFlowDatagram{datagramSequenceNumber} - Unknown packet data type: "
                    . "$sFlowSample{packetDataType} - rest of the datagram skipped";
-  
+
             push @errors, $error;
             pop @sFlowSamples;
-		        return (\%sFlowDatagram, \@sFlowSamples, \@errors);
+            return (\%sFlowDatagram, \@sFlowSamples, \@errors);
           }
 
           (undef,
@@ -380,7 +393,7 @@ sub decode {
 
               # extended data: router
               elsif ($extendedDataType == ROUTERDATA_SFLOWv4) {
-  
+
                 ($subProcessed, $error) =
                   &_decodeRouterData(
                     \$offset,
@@ -415,9 +428,9 @@ sub decode {
                   pop @sFlowSamples unless $error =~ /rest of the datagram skipped/;
                   return (\%sFlowDatagram, \@sFlowSamples, \@errors);
                 }
-  
+
              }
-  
+
               # extended data: user
               elsif ($extendedDataType == USERDATA_SFLOWv4) {
 
@@ -427,7 +440,7 @@ sub decode {
                     \$sFlowDatagramPacked,
                     \%sFlowDatagram,
                     \%sFlowSample,
-                  );  
+                  );
 
                 unless ($subProcessed) {
                   push @errors, $error;
@@ -454,22 +467,22 @@ sub decode {
                   pop @sFlowSamples unless $error =~ /rest of the datagram skipped/;
                   return (\%sFlowDatagram, \@sFlowSamples, \@errors);
                 }
-  
+
               }
 
               else {
-  
+
                 $error = "ERROR: [sFlow.pm] <sFlowV4:ExtendedData> AgentIP: $sFlowDatagram{AgentIp}, "
                        . "Datagram: $sFlowDatagram{datagramSequenceNumber} - Unknown extended data type: "
                        . "$extendedDataType - rest of the datagram skipped";
-    
+
                 push @errors, $error;
                 pop @sFlowSamples;
-		            return (\%sFlowDatagram, \@sFlowSamples, \@errors);
+                return (\%sFlowDatagram, \@sFlowSamples, \@errors);
               }
-  
+
             }
-  
+
           }
 
         }
@@ -487,7 +500,7 @@ sub decode {
             unpack("a$offset N4", $sFlowDatagramPacked);
 
           $offset += 16;
-      
+
           $sFlowSample{sourceIdType} = $sourceId >> 24;
           $sFlowSample{sourceIdIndex} = $sourceId & 2 ** 24 - 1;
 
@@ -523,21 +536,21 @@ sub decode {
           elsif ($sFlowSample{countersVersion} == WANCOUNTER_SFLOWv4) {
             &_decodeCounterGeneric(\$offset, \$sFlowDatagramPacked, \%sFlowSample);
           }
-  
+
           # counterstype: vlan
           elsif ($sFlowSample{countersVersion} == VLANCOUNTER_SFLOWv4) {
             &_decodeCounterVlan(\$offset, \$sFlowDatagramPacked, \%sFlowSample);
           }
 
           else {
-  
+
             $error = "ERROR: [sFlow.pm] <sFlowV4:CountersType> AgentIP: $sFlowDatagram{AgentIp}, "
                    . "Datagram: $sFlowDatagram{datagramSequenceNumber} - Unknown counters type: "
                    . "$sFlowSample{countersVersion} - rest of the datagram skipped";
-  
+
             push @errors, $error;
             pop @sFlowSamples;
-		        return (\%sFlowDatagram, \@sFlowSamples, \@errors);
+            return (\%sFlowDatagram, \@sFlowSamples, \@errors);
           }
 
         }
@@ -550,7 +563,7 @@ sub decode {
 
           push @errors, $error;
           pop @sFlowSamples;
-		      return (\%sFlowDatagram, \@sFlowSamples, \@errors);
+          return (\%sFlowDatagram, \@sFlowSamples, \@errors);
         }
 
       }
@@ -697,7 +710,7 @@ sub decode {
 
         elsif ($sFlowSample{sampleTypeEnterprise} == 0
                and $sFlowSample{sampleTypeFormat} == COUNTERSAMPLE_SFLOWv5) {
-  
+
           (undef,
            $sFlowSample{sampleSequenceNumber},
            $sourceId,
@@ -746,7 +759,7 @@ sub decode {
                   \%sFlowSample,
                   \@sFlowSamples,
                 );
-  
+
               unless ($subProcessed) {
                 push @errors, $error;
                 pop @sFlowSamples unless $error =~ /rest of the datagram skipped/;
@@ -761,7 +774,7 @@ sub decode {
 
         elsif ($sFlowSample{sampleTypeEnterprise} == 0
                and $sFlowSample{sampleTypeFormat} == EXPANDEDFLOWSAMPLE_SFLOWv5) {
-        
+
           (undef,
            $sFlowSample{sampleSequenceNumber},
            $sFlowSample{sourceIdType},
@@ -822,9 +835,9 @@ sub decode {
                 pop @sFlowSamples unless $error =~ /rest of the datagram skipped/;
                 return (\%sFlowDatagram, \@sFlowSamples, \@errors);
               }
-  
+
             }
-  
+
           }
 
         }
@@ -840,7 +853,7 @@ sub decode {
             unpack("a$offset N4", $sFlowDatagramPacked);
 
           $offset += 16;
-  
+
           # boundcheck for $sFlowSample{counterRecordsCount}
           # $sFlowSample{counterRecordsCount} * 4
           # cannot be longer than the number of $sFlowDatagramPacked byte - $offset
@@ -912,11 +925,11 @@ sub decode {
                  . "$sFlowDatagram{datagramSequenceNumber} - Unknown sample enterprise: "
                  . "$sFlowSample{sampleTypeEnterprise} or format: $sFlowSample{sampleTypeFormat} "
                  . "- rest of the datagram skipped";
-  
+
           push @errors, $error;
           pop @sFlowSamples;
-		      return (\%sFlowDatagram, \@sFlowSamples, \@errors);
-        } 
+          return (\%sFlowDatagram, \@sFlowSamples, \@errors);
+        }
 
       }
 
@@ -932,9 +945,9 @@ sub decode {
 
     push @errors, $error;
     %sFlowDatagram = ();
-		return (\%sFlowDatagram, \@sFlowSamples, \@errors);
+    return (\%sFlowDatagram, \@sFlowSamples, \@errors);
   }
-  
+
   return (\%sFlowDatagram, \@sFlowSamples, \@errors);
 
 }
@@ -1027,7 +1040,7 @@ sub _decodeIpAddress {
 
     if (defined($DatagramOrSampleData)) {
 
-      # unknown ip version added in v5 
+      # unknown ip version added in v5
       if ($IpVersion == UNKNOWNIPVERSION) {
 
         $error = "ERROR: [sFlow.pm] AgentIP: Unknown agent ip version: "
@@ -1048,7 +1061,7 @@ sub _decodeIpAddress {
 
     else {
 
-      # unknown ip version added in v5 
+      # unknown ip version added in v5
       if ($IpVersion == UNKNOWNIPVERSION) {
 
         $error = "ERROR: [sFlow.pm] AgentIP: $sFlowDatagram->{AgentIp}, "
@@ -1058,7 +1071,7 @@ sub _decodeIpAddress {
 
         return (undef, $error);
       }
-    
+
       else {
         $error = "ERROR: [sFlow.pm] AgentIP: $sFlowDatagram->{AgentIp}, "
                . "Datagram: $sFlowDatagram->{datagramSequenceNumber}, Sample: "
@@ -1178,9 +1191,9 @@ sub _decodeFlowRecord {
 
       ($subProcessed, $error) =
         &_decodeUserData(
-          \$offset, 
-          $sFlowDatagramPackedRef, 
-          $sFlowDatagram, 
+          \$offset,
+          $sFlowDatagramPackedRef,
+          $sFlowDatagram,
           $sFlowSample
         );
 
@@ -1194,9 +1207,9 @@ sub _decodeFlowRecord {
 
       ($subProcessed, $error) =
         &_decodeUrlData(
-          \$offset, 
-          $sFlowDatagramPackedRef, 
-          $sFlowDatagram, 
+          \$offset,
+          $sFlowDatagramPackedRef,
+          $sFlowDatagram,
           $sFlowSample
         );
 
@@ -1244,8 +1257,8 @@ sub _decodeFlowRecord {
 
       ($subProcessed, $error) =
         &_decodeMplsTunnel(
-          \$offset, 
-          $sFlowDatagramPackedRef, 
+          \$offset,
+          $sFlowDatagramPackedRef,
           $sFlowSample
         );
 
@@ -1259,8 +1272,8 @@ sub _decodeFlowRecord {
 
       ($subProcessed, $error) =
         &_decodeMplsVc(
-          \$offset, 
-          $sFlowDatagramPackedRef, 
+          \$offset,
+          $sFlowDatagramPackedRef,
           $sFlowSample
         );
 
@@ -1274,8 +1287,8 @@ sub _decodeFlowRecord {
 
       ($subProcessed, $error) =
         &_decodeMplsFec(
-          \$offset, 
-          $sFlowDatagramPackedRef, 
+          \$offset,
+          $sFlowDatagramPackedRef,
           $sFlowSample
         );
 
@@ -1293,8 +1306,8 @@ sub _decodeFlowRecord {
 
       ($subProcessed, $error) =
         &_decodeVlanTunnel(
-          \$offset, 
-          $sFlowDatagramPackedRef, 
+          \$offset,
+          $sFlowDatagramPackedRef,
           $sFlowSample
         );
 
@@ -1311,7 +1324,7 @@ sub _decodeFlowRecord {
              . "$sFlowSample->{sampleSequenceNumber} - Unknown Flowdata format: "
              . "$flowTypeFormat - rest of the datagram skipped";
 
-		  return (undef, $error);
+          return (undef, $error);
     }
 
   }
@@ -1322,7 +1335,7 @@ sub _decodeFlowRecord {
            . "Datagram: $sFlowDatagram->{datagramSequenceNumber} - Unknown Flowdata enterprise: "
            . "$flowTypeEnterprise - rest of the datagram skipped";
 
-		return (undef, $error);
+        return (undef, $error);
   }
 
   $$offsetref = $offset;
@@ -1386,12 +1399,16 @@ sub _decodeCounterRecord {
       &_decodeCounterProcessor(\$offset, $sFlowDatagramPackedRef, $sFlowSample);
     }
 
+    elsif ($counterTypeFormat == HTTPCOUNTER_SFLOWv5) {
+      &_decodeCounterHTTP(\$offset, $sFlowDatagramPackedRef, $sFlowSample);
+    }
+
     else {
 
       $error = "ERROR: [sFlow.pm] <sFlowV5:CounterData> AgentIP: $sFlowDatagram->{AgentIp}, "
              . "Datagram: $sFlowDatagram->{datagramSequenceNumber} - Unknown counter data format: "
              . "$counterTypeFormat - rest of the datagram skipped";
-		  return (undef, $error);
+      return (undef, $error);
     }
 
   }
@@ -1402,7 +1419,7 @@ sub _decodeCounterRecord {
            . "Datagram: $sFlowDatagram->{datagramSequenceNumber} - Unknown counter data enterprise: "
            . "$counterTypeEnterprise - rest of the datagram skipped";
 
-	  return (undef, $error);
+      return (undef, $error);
   }
 
   $$offsetref = $offset;
@@ -1536,7 +1553,7 @@ sub _decodeHeaderData {
       $sFlowSample->{HeaderDatalen} = 64;
     }
 
-  } 
+  }
 
   $$offsetref = $offset;
   return (1, undef);
@@ -1554,24 +1571,18 @@ sub _decodeEthernetFrameData {
 
   my $sFlowDatagramPacked = $$sFlowDatagramPackedRef;
   my $offset = $$offsetref;
-  my $EtherSrcMac1 = undef;
-  my $EtherSrcMac2 = undef;
-  my $EtherDestMac1 = undef;
-  my $EtherDestMac2 = undef;
 
   $sFlowSample->{ETHERNETFRAMEDATA} = 'ETHERNETFRAMEDATA';
 
   (undef,
    $sFlowSample->{EtherMacPacketlength},
-   $EtherSrcMac1,
-   $EtherSrcMac2,
-   $EtherDestMac1,
-   $EtherDestMac2,
+   $sFlowSample->{EtherSrcMac},
+   $sFlowSample->{EtherDestMac},
    $sFlowSample->{EtherPackettype}) =
-    unpack("a$offset N6", $sFlowDatagramPacked);
+    unpack("a$offset N(a6x2)2N", $sFlowDatagramPacked);
 
-  $sFlowSample->{EtherSrcMac} = sprintf("%08x%04x", $EtherSrcMac1, $EtherSrcMac2);
-  $sFlowSample->{EtherDestMac} = sprintf("%08x%04x", $EtherDestMac1, $EtherDestMac2);
+  # format MAC addresses as hex (ignore final 2 padding bytes)
+  map { $_ = unpack 'H12' } ( @{$sFlowSample}{qw{EtherSrcMac EtherDestMac}} );
 
   $offset += 24;
   $$offsetref = $offset;
@@ -1790,15 +1801,15 @@ sub _decodeGatewayData {
              . "- rest of the datagram skipped";
 
     return (undef, $error);
- 
+
   } elsif ($sFlowSample->{GatewayDestAsPathsCount} < 0) {
- 
+
     # error $sFlowSample->{GatewayDestAsPaths} too small
     $error = "ERROR: [sFlow.pm] GatewayDestAsPaths: Gateway destination AS paths count too small "
              . "- rest of the datagram skipped";
 
     return (undef, $error);
-  
+
   } else {
 
     # array containing the single paths
@@ -1897,7 +1908,7 @@ sub _decodeGatewayData {
                . "- rest of the datagram skipped";
 
       return (undef, $error);
-    
+
     # $sFlowSample->{GatewayLengthCommunitiesList} might very well be 0
     } elsif ($sFlowSample->{GatewayLengthCommunitiesList} < 0) {
 
@@ -2221,8 +2232,8 @@ sub _decodeMplsData {
 
   }
 
-  (undef, 
-   $sFlowSample->{MplsOutLabelStackCount}) = 
+  (undef,
+   $sFlowSample->{MplsOutLabelStackCount}) =
     unpack("a$offset N", $sFlowDatagramPacked);
 
   $offset += 4;
@@ -2566,7 +2577,7 @@ sub _decodeVlanTunnel {
   # $sFlowSample->{VlanTunnelLayerStackCount} * 4
   # cannot be longer than the number of $sFlowDatagramPacked byte - $offset
 
-  if (length($sFlowDatagramPacked) - $offset < 
+  if (length($sFlowDatagramPacked) - $offset <
     $sFlowSample->{VlanTunnelLayerStackCount} * 4) {
 
     # error $sFlowSample->{VlanTunnelLayerStackCount} too big
@@ -2613,12 +2624,6 @@ sub _decodeCounterGeneric {
 
   my $sFlowDatagramPacked = $$sFlowDatagramPackedRef;
   my $offset = $$offsetref;
-  my $ifSpeed1 = undef;
-  my $ifSpeed2 = undef;
-  my $ifInOctets1 = undef;
-  my $ifInOctets2 = undef;
-  my $ifOutOctets1 = undef;
-  my $ifOutOctets2 = undef;
   my $ifStatus = undef;
 
   $sFlowSample->{COUNTERGENERIC} = 'COUNTERGENERIC';
@@ -2626,41 +2631,38 @@ sub _decodeCounterGeneric {
   (undef,
    $sFlowSample->{ifIndex},
    $sFlowSample->{ifType},
-   $ifSpeed1,
-   $ifSpeed2,
+   $sFlowSample->{ifSpeed},     # $Q
    $sFlowSample->{ifDirection},
    $ifStatus,
-   $ifInOctets1,
-   $ifInOctets2,
+   $sFlowSample->{ifInOctets},  # $Q
    $sFlowSample->{ifInUcastPkts},
    $sFlowSample->{ifInMulticastPkts},
    $sFlowSample->{ifInBroadcastPkts},
    $sFlowSample->{ifInDiscards},
    $sFlowSample->{ifInErrors},
    $sFlowSample->{ifInUnknownProtos},
-   $ifOutOctets1,
-   $ifOutOctets2,
+   $sFlowSample->{ifOutOctets}, # $Q
    $sFlowSample->{ifOutUcastPkts},
    $sFlowSample->{ifOutMulticastPkts},
    $sFlowSample->{ifOutBroadcastPkts},
    $sFlowSample->{ifOutDiscards},
    $sFlowSample->{ifOutErrors},
    $sFlowSample->{ifPromiscuousMode}) =
-    unpack("a$offset N22", $sFlowDatagramPacked);
+    unpack("a$offset N2${Q}N2${Q}N6${Q}N6", $sFlowDatagramPacked);
 
   $offset += 88;
 
-  $sFlowSample->{ifSpeed} = Math::BigInt->new("$ifSpeed1");
-  $sFlowSample->{ifSpeed} = $sFlowSample->{ifSpeed} << 32;
-  $sFlowSample->{ifSpeed} += $ifSpeed2;
+  unless ($have_quad) {
+    my $hex_val;
+    $hex_val = unpack('H*', $sFlowSample->{ifSpeed});
+    $sFlowSample->{ifSpeed} =  Math::BigInt->from_hex("0x$hex_val");
 
-  $sFlowSample->{ifInOctets} = Math::BigInt->new("$ifInOctets1");
-  $sFlowSample->{ifInOctets} = $sFlowSample->{ifInOctets} << 32;
-  $sFlowSample->{ifInOctets} += $ifInOctets2;
+    $hex_val = unpack('H*', $sFlowSample->{ifInOctets});
+    $sFlowSample->{ifInOctets} =  Math::BigInt->from_hex("0x$hex_val");
 
-  $sFlowSample->{ifOutOctets} = Math::BigInt->new("$ifOutOctets1");
-  $sFlowSample->{ifOutOctets} = $sFlowSample->{ifOutOctets} << 32;
-  $sFlowSample->{ifOutOctets} += $ifOutOctets2;
+    $hex_val = unpack('H*', $sFlowSample->{ifOutOctets});
+    $sFlowSample->{ifOutOctets} =  Math::BigInt->from_hex("0x$hex_val");
+  }
 
   # seperate the 32bit status
   $sFlowSample->{ifAdminStatus} = $ifStatus & 0x1;
@@ -2753,69 +2755,55 @@ sub _decodeCounterVg {
 
   my $sFlowDatagramPacked = $$sFlowDatagramPackedRef;
   my $offset = $$offsetref;
-  my $dot12InHighPriorityOctets1 = undef;
-  my $dot12InHighPriorityOctets2 = undef;
-  my $dot12InNormPriorityOctets1 = undef;
-  my $dot12InNormPriorityOctets2 = undef;
-  my $dot12OutHighPriorityOctets1 = undef;
-  my $dot12OutHighPriorityOctets2 = undef;
-  my $dot12HCInHighPriorityOctets1 = undef;
-  my $dot12HCInHighPriorityOctets2 = undef;
-  my $dot12HCInNormPriorityOctets1 = undef;
-  my $dot12HCInNormPriorityOctets2 = undef;
-  my $dot12HCOutHighPriorityOctets1 = undef;
-  my $dot12HCOutHighPriorityOctets2 = undef;
 
   $sFlowSample->{COUNTERVG} = 'COUNTERVG';
 
   (undef,
    $sFlowSample->{dot12InHighPriorityFrames},
-   $dot12InHighPriorityOctets1,
-   $dot12InHighPriorityOctets2,
+   $sFlowSample->{dot12InHighPriorityOctets}, # $Q
    $sFlowSample->{dot12InNormPriorityFrames},
-   $dot12InNormPriorityOctets1,
-   $dot12InNormPriorityOctets2,
+   $sFlowSample->{dot12InNormPriorityOctets}, # $Q
    $sFlowSample->{dot12InIPMErrors},
    $sFlowSample->{dot12InOversizeFrameErrors},
    $sFlowSample->{dot12InDataErrors},
    $sFlowSample->{dot12InNullAddressedFrames},
    $sFlowSample->{dot12OutHighPriorityFrames},
-   $dot12OutHighPriorityOctets1,
-   $dot12OutHighPriorityOctets2,
+   $sFlowSample->{dot12OutHighPriorityOctets}, # $Q
    $sFlowSample->{dot12TransitionIntoTrainings},
-   $dot12HCInHighPriorityOctets1,
-   $dot12HCInHighPriorityOctets2,
-   $dot12HCInNormPriorityOctets1,
-   $dot12HCInNormPriorityOctets2,
-   $dot12HCOutHighPriorityOctets1,
-   $dot12HCOutHighPriorityOctets2) =
-    unpack("a$offset N20", $sFlowDatagramPacked);
+   $sFlowSample->{dot12HCInHighPriorityOctets},  # $Q
+   $sFlowSample->{dot12HCInNormPriorityOctets},  # $Q
+   $sFlowSample->{dot12HCOutHighPriorityOctets}, # $Q
+  ) =
+    unpack("a$offset N${Q}N${Q}N5${Q}N${Q}3", $sFlowDatagramPacked);
 
   $offset += 80;
 
-  $sFlowSample->{dot12InHighPriorityOctets} = Math::BigInt->new("$dot12InHighPriorityOctets1");
-  $sFlowSample->{dot12InHighPriorityOctets} = $sFlowSample->{dot12InHighPriorityOctets} << 32;
-  $sFlowSample->{dot12InHighPriorityOctets} += $dot12InHighPriorityOctets2;
+  unless ($have_quad) {
+    my $hex_val;
+    $hex_val = unpack( 'H*', $sFlowSample->{dot12InHighPriorityOctets} );
+    $sFlowSample->{dot12InHighPriorityOctets}
+      = Math::BigInt->from_hex("0x$hex_val");
 
-  $sFlowSample->{dot12InNormPriorityOctets} = Math::BigInt->new("$dot12InNormPriorityOctets1");
-  $sFlowSample->{dot12InNormPriorityOctets} = $sFlowSample->{dot12InNormPriorityOctets} << 32;
-  $sFlowSample->{dot12InNormPriorityOctets} += $dot12InNormPriorityOctets2;
+    $hex_val = unpack( 'H*', $sFlowSample->{dot12InNormPriorityOctets} );
+    $sFlowSample->{dot12InNormPriorityOctets}
+      = Math::BigInt->from_hex("0x$hex_val");
 
-  $sFlowSample->{dot12OutHighPriorityOctets} = Math::BigInt->new("$dot12OutHighPriorityOctets1");
-  $sFlowSample->{dot12OutHighPriorityOctets} = $sFlowSample->{dot12OutHighPriorityOctets} << 32;
-  $sFlowSample->{dot12OutHighPriorityOctets} += $dot12OutHighPriorityOctets2;
+    $hex_val = unpack( 'H*', $sFlowSample->{dot12OutHighPriorityOctets} );
+    $sFlowSample->{dot12OutHighPriorityOctets}
+      = Math::BigInt->from_hex("0x$hex_val");
 
-  $sFlowSample->{dot12HCInHighPriorityOctets} = Math::BigInt->new("$dot12HCInHighPriorityOctets1");
-  $sFlowSample->{dot12HCInHighPriorityOctets} = $sFlowSample->{dot12HCInHighPriorityOctets} << 32;
-  $sFlowSample->{dot12HCInHighPriorityOctets} += $dot12HCInHighPriorityOctets2;
+    $hex_val = unpack( 'H*', $sFlowSample->{dot12HCInHighPriorityOctets} );
+    $sFlowSample->{dot12HCInHighPriorityOctets}
+      = Math::BigInt->from_hex("0x$hex_val");
 
-  $sFlowSample->{dot12HCInNormPriorityOctets} = Math::BigInt->new("$dot12HCInNormPriorityOctets1");
-  $sFlowSample->{dot12HCInNormPriorityOctets} = $sFlowSample->{dot12HCInNormPriorityOctets} << 32;
-  $sFlowSample->{dot12HCInNormPriorityOctets} += $dot12HCInNormPriorityOctets2;
+    $hex_val = unpack( 'H*', $sFlowSample->{dot12HCInNormPriorityOctets} );
+    $sFlowSample->{dot12HCInNormPriorityOctets}
+      = Math::BigInt->from_hex("0x$hex_val");
 
-  $sFlowSample->{dot12HCOutHighPriorityOctets} = Math::BigInt->new("$dot12HCOutHighPriorityOctets1");
-  $sFlowSample->{dot12HCOutHighPriorityOctets} = $sFlowSample->{dot12HCOutHighPriorityOctets} << 32;
-  $sFlowSample->{dot12HCOutHighPriorityOctets} += $dot12HCOutHighPriorityOctets2;
+    $hex_val = unpack( 'H*', $sFlowSample->{dot12HCOutHighPriorityOctets} );
+    $sFlowSample->{dot12HCOutHighPriorityOctets}
+      = Math::BigInt->from_hex("0x$hex_val");
+  }
 
   $$offsetref = $offset;
 }
@@ -2831,27 +2819,25 @@ sub _decodeCounterVlan {
 
   my $sFlowDatagramPacked = $$sFlowDatagramPackedRef;
   my $offset = $$offsetref;
-  my $octets1 = undef;
-  my $octets2 = undef;
 
   $sFlowSample->{COUNTERVLAN} = 'COUNTERVLAN';
 
   (undef,
    $sFlowSample->{vlan_id},
-   $octets1,
-   $octets2,
+   $sFlowSample->{octets},      # $Q
    $sFlowSample->{ucastPkts},
    $sFlowSample->{multicastPkts},
    $sFlowSample->{broadcastPkts},
    $sFlowSample->{discards}) =
-    unpack("a$offset N7", $sFlowDatagramPacked);
+    unpack("a$offset N${Q}N4", $sFlowDatagramPacked);
 
   $offset += 28;
 
-  $sFlowSample->{octets} = Math::BigInt->new("$octets1");
-  $sFlowSample->{octets} = $sFlowSample->{octets} << 32;
-  $sFlowSample->{octets} += $octets2;
-
+  unless ($have_quad) {
+    my $hex_val;
+    $hex_val = unpack( 'H*', $sFlowSample->{octets} );
+    $sFlowSample->{octets} = Math::BigInt->from_hex("0x$hex_val");
+  }
   $$offsetref = $offset;
 }
 
@@ -2866,18 +2852,12 @@ sub _decodeCounterLag {
 
   my $sFlowDatagramPacked = $$sFlowDatagramPackedRef;
   my $offset = $$offsetref;
-  my $dot3adAggPortActorSystemID1 = undef;
-  my $dot3adAggPortActorSystemID2 = undef;
-  my $dot3adAggPortPartnerOperSystemID1 = undef;
-  my $dot3adAggPortPartnerOperSystemID2 = undef;
 
   $sFlowSample->{COUNTERLAG} = 'COUNTERLAG';
 
   (undef,
-   $dot3adAggPortActorSystemID1,
-   $dot3adAggPortActorSystemID2,
-   $dot3adAggPortPartnerOperSystemID1,
-   $dot3adAggPortPartnerOperSystemID2,
+   $sFlowSample->{dot3adAggPortActorSystemID},
+   $sFlowSample->{dot3adAggPortPartnerOperSystemID},
    $sFlowSample->{dot3adAggPortAttachedAggID},
    $sFlowSample->{dot3adAggPortActorAdminState},
    $sFlowSample->{dot3adAggPortActorOperState},
@@ -2891,13 +2871,46 @@ sub _decodeCounterLag {
    $sFlowSample->{dot3adAggPortStatsLACPDUsTx},
    $sFlowSample->{dot3adAggPortStatsMarkerPDUsTx},
    $sFlowSample->{dot3adAggPortStatsMarkerResponsePDUsTx}) =
-    unpack("a$offset N5C4N8", $sFlowDatagramPacked);
+    unpack("a$offset (a6x2)2NC4N8", $sFlowDatagramPacked);
 
   $offset += 56;
 
-  $sFlowSample->{dot3adAggPortActorSystemID} = sprintf("%08x%04x", $dot3adAggPortActorSystemID1, $dot3adAggPortActorSystemID2);
-  $sFlowSample->{dot3adAggPortPartnerOperSystemID} = sprintf("%08x%04x", $dot3adAggPortPartnerOperSystemID1, $dot3adAggPortPartnerOperSystemID2);
+  # format MAC addresses as hex (ignore final 2 padding bytes)
+  map { $_ = unpack 'H12' } ( @{$sFlowSample}{qw{dot3adAggPortActorSystemID dot3adAggPortPartnerOperSystemID}} );
 
+  $$offsetref = $offset;
+}
+
+#############################################################################
+sub _decodeCounterHTTP {
+#############################################################################
+
+  my $offsetref = shift;
+  my $sFlowDatagramPackedRef = shift;
+  my $sFlowSample = shift;
+
+  my $offset = $$offsetref;
+
+  $sFlowSample->{COUNTERHTTP} = 'COUNTERHTTP';
+  (undef,
+   $sFlowSample->{methodOptionCount},
+   $sFlowSample->{methodGetCount},
+   $sFlowSample->{methodHeadCount},
+   $sFlowSample->{methodPostCount},
+   $sFlowSample->{methodPutCount},
+   $sFlowSample->{methodDeleteCount},
+   $sFlowSample->{methodTraceCount},
+   $sFlowSample->{methodConnectCount},
+   $sFlowSample->{methodOtherCount},
+   $sFlowSample->{status1xxCount},
+   $sFlowSample->{status2xxCount},
+   $sFlowSample->{status3xxCount},
+   $sFlowSample->{status4xxCount},
+   $sFlowSample->{status5xxCount},
+   $sFlowSample->{statusOtherCount},
+  ) = unpack("a$offset N15", $$sFlowDatagramPackedRef);
+
+  $offset += 60;
   $$offsetref = $offset;
 }
 
@@ -2923,21 +2936,21 @@ sub _decodeCounterProcessor {
    $sFlowSample->{cpu5s},
    $sFlowSample->{cpu1m},
    $sFlowSample->{cpu5m},
-   $memoryTotal1,
-   $memoryTotal2,
-   $memoryFree1,
-   $memoryFree2) =
-    unpack("a$offset N7", $sFlowDatagramPacked);
+   $sFlowSample->{memoryTotal}, # $Q
+   $sFlowSample->{memoryFree},  # $Q
+   ) =
+    unpack("a$offset N3${Q}2", $sFlowDatagramPacked);
 
   $offset += 28;
 
-  $sFlowSample->{memoryTotal} = Math::BigInt->new("$memoryTotal1");
-  $sFlowSample->{memoryTotal} = $sFlowSample->{memoryTotal} << 32;
-  $sFlowSample->{memoryTotal} += $memoryTotal2;
+  unless ($have_quad) {
+    my $hex_val;
+    $hex_val = unpack( 'H*', $sFlowSample->{memoryTotal} );
+    $sFlowSample->{memoryTotal} = Math::BigInt->from_hex("0x$hex_val");
 
-  $sFlowSample->{memoryFree} = Math::BigInt->new("$memoryFree1");
-  $sFlowSample->{memoryFree} = $sFlowSample->{memoryFree} << 32;
-  $sFlowSample->{memoryFree} += $memoryFree2;
+    $hex_val = unpack( 'H*', $sFlowSample->{memoryFree} );
+    $sFlowSample->{memoryFree} = Math::BigInt->from_hex("0x$hex_val");
+  }
 
   $$offsetref = $offset;
 }
@@ -2959,7 +2972,7 @@ Net::sFlow - decode sFlow datagrams
 
   use Net::sFlow;
   use IO::Socket::INET;
-  
+
   my $sock = IO::Socket::INET->new( LocalPort => '6343',
                                     Proto     => 'udp')
                                or die "Can't bind : $@\n";
@@ -3399,6 +3412,24 @@ Counter processor (only in sFlow v5):
   memoryTotal
   memoryFree
 
+Counter HTTP:
+
+  COUNTERHTTP
+  methodOptionCount
+  methodGetCount
+  methodHeadCount
+  methodPostCount
+  methodPutCount
+  methodDeleteCount
+  methodTraceCount
+  methodConnectCount
+  methodOtherCount
+  status1xxCount
+  status2xxCount
+  status3xxCount
+  status4xxCount
+  status5xxCount
+  statusOtherCount
 
 =item I<$error>
 
@@ -3453,3 +3484,12 @@ http://www.perl.com/perl/misc/Artistic.html)
 
 =cut
 
+# Local Variables: ***
+# mode:CPerl ***
+# cperl-indent-level:2 ***
+# perl-indent-level:2 ***
+# tab-width: 2 ***
+# indent-tabs-mode: nil ***
+# End: ***
+#
+# vim: ts=2 sw=2 expandtab

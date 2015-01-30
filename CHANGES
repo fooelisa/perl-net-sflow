@@ -88,3 +88,5 @@ v. 0.12
   + don't trash already decoded data
     thanks andrew! :D
 
+v. 0.13
+  + decode sample type 2201 (http_counters)
