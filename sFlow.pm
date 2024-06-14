@@ -995,7 +995,7 @@ sub _decodeIpAddress {
 
     elsif ($IpVersion == IPv6) {
 
-      $sFlowSample->{$keyName} =
+      $sFlowDatagram->{$keyName} =
         join(':', unpack("x$offset H4H4H4H4H4H4H4H4", $sFlowDatagramPacked));
 
       $offset += 16;
