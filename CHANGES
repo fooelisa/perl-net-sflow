@@ -1,5 +1,5 @@
 #
-# Elisa Jasinska <elisa@jasinska.de>
+# Elisa Jasinska <elisa@bigwaveit.org>
 # 12/19/2014
 # 
 #
@@ -91,3 +91,4 @@ v. 0.12
 v. 0.13
   + decode sample type 2201 (http_counters)
   + fixed issue #4 impacting decode of datagrams received over IPv6
+    thanks ryan! :D

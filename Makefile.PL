@@ -2,7 +2,7 @@
 #
 # Makefile.PL for sFlow.pm
 #
-# Elisa Jasinska <elisa@jasinska.de>
+# Elisa Jasinska <elisa@bigwaveit.org>
 # 12/19/2014
 #
 #
@@ -23,7 +23,7 @@ WriteMakefile(
     'ABSTRACT'        => 'decode sFlow datagrams',
     'EXE_FILES'       =>  [ 'examples/sFluxDebug.pl'],
     'INSTALLSCRIPT'   => "/usr/local/bin",
-    'AUTHOR'          => 'Elisa Jasinska <elisa@jasinska.de>',
+    'AUTHOR'          => 'Elisa Jasinska <elisa@bigwaveit.org>',
     'dist'            => { COMPRESS  =>  'gzip',
                            SUFFIX    =>  'gz'
                          },

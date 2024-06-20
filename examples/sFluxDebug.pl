@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 #
-# Elisa Jasinska <elisa@jasinska.de>
+# Elisa Jasinska <elisa@bigwaveit.org>
 # 12/19/2014
 #
 #
