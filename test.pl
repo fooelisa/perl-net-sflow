@@ -2,7 +2,7 @@
 #
 # test.pl for sFlow.pm
 #
-# Elisa Jasinska <elisa@jasinska.de>
+# Elisa Jasinska <elisa@bigwaveit.org>
 # 12/19/2014
 #
 #

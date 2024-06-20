@@ -2,7 +2,7 @@
 #
 # With many thanks to Tobias Engel for his help and support!
 #
-# Elisa Jasinska <elisa@jasinska.de>
+# Elisa Jasinska <elisa@bigwaveit.org>
 # 12/19/2014
 #
 #
@@ -3463,13 +3463,13 @@ Math::BigInt
 
 =head1 AUTHOR
 
-Elisa Jasinska <elisa@jasinska.de>
+Elisa Jasinska <elisa@bigwaveit.org>
 
 
 
 =head1 CONTACT
 
-Please send comments or bug reports to <elisa@jasinska.de> and/or <sflow@ams-ix.net>
+Please send comments or bug reports to <elisa@bigwaveit.org> and/or <sflow@ams-ix.net>
 
 
 
