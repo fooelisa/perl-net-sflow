@@ -1,6 +1,8 @@
 Revision history for Perl extension Net-sFlow
 
 {{$NEXT}}
+
+0.13 2024-07-02T10:51:40Z
   + decode sample type 2201 (http_counters)
   + fixed issue #4 impacting decode of datagrams received over IPv6
     thanks ryan! :D
