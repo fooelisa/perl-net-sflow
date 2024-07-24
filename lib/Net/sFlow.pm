@@ -1636,23 +1636,16 @@ sub _decodeIPv6Data {
 
   $sFlowSample->{IPv6DATA} = 'IPv6DATA';
 
-  (undef,
-   $sFlowSample->{IPv6Packetlength},
-   $sFlowSample->{IPv6NextHeaderProto}) =
-    unpack("a$offset N2", $sFlowDatagramPacked);
-
-  $sFlowSample->{IPv6srcIp} =
-    join(':', unpack("x$offset H4H4H4H4H4H4H4H4", $sFlowDatagramPacked));
-
-  $sFlowSample->{IPv6destIp} =
-    join(':', unpack("x$offset H4H4H4H4H4H4H4H4", $sFlowDatagramPacked));
-
-  (undef,
-   $sFlowSample->{IPv6srcPort},
-   $sFlowSample->{IPv6destPort},
-   $sFlowSample->{IPv6tcpFlags},
-   $sFlowSample->{IPv6Priority}) =
-    unpack("a$offset N4", $sFlowDatagramPacked);
+  (
+    $sFlowSample->{IPv6Packetlength},
+    $sFlowSample->{IPv6NextHeaderProto},
+    $sFlowSample->{IPv6srcIp},
+    $sFlowSample->{IPv6destIp},
+    $sFlowSample->{IPv6srcPort},
+    $sFlowSample->{IPv6destPort},
+    $sFlowSample->{IPv6tcpFlags},
+    $sFlowSample->{IPv6Priority}
+  ) = unpack("a$offset N2 a16 a16 N4", $sFlowDatagramPacked);
 
   $offset += 56;
   $$offsetref = $offset;
