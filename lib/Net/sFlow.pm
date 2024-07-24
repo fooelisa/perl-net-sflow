@@ -2303,7 +2303,7 @@ sub _decodeNatData {
       $sFlowSample,
       $sFlowSamples,
       $sFlowSample->{NatIpVersionSrcAddress},
-      'NatIpVersionSrcAddress',
+      'NatSrcAddress',
       undef,
     );
 
@@ -2325,7 +2325,7 @@ sub _decodeNatData {
       $sFlowSample,
       $sFlowSamples,
       $sFlowSample->{NatIpVersionDestAddress},
-      'NatIpVersionDestAddress',
+      'NatDestAddress',
       undef,
     );
 
