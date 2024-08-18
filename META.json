@@ -64,7 +64,7 @@
          "web" : "https://github.com/fooelisa/perl-net-sflow"
       }
    },
-   "version" : "0.13",
+   "version" : "0.14",
    "x_contributors" : [
       "Andrew Feren <acferen@gmail.com>",
       "Elisa Jasinska <elisa@jasinska.de>",

@@ -33,7 +33,7 @@ use Exporter 'import';
 our $VERSION;
 our @EXPORT_OK;
 BEGIN {
-	$VERSION   = '0.13';
+	$VERSION   = '0.14';
 	@EXPORT_OK = qw(decode);
 }
 
